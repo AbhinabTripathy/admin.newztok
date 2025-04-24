@@ -6,9 +6,14 @@ import {
   Button,
   Divider,
   IconButton,
+  Tooltip,
+  Snackbar,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
+import axios from 'axios';
 
 const ImageUploadSection = ({ title, dimensions, image, onImageChange, onImageDelete }) => {
   const handleImageChange = (event) => {
@@ -24,16 +29,37 @@ const ImageUploadSection = ({ title, dimensions, image, onImageChange, onImageDe
 
   return (
     <Box sx={{ mb: 3 }}>
-      <Typography
-        sx={{
-          fontSize: '14px',
-          color: '#666',
-          mb: 1,
-          fontFamily: 'Poppins',
-        }}
-      >
-        Please insert {dimensions} px image
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography
+          sx={{
+            fontSize: '14px',
+            color: '#666',
+            fontFamily: 'Poppins',
+          }}
+        >
+          Please insert {dimensions} px image
+        </Typography>
+        
+        {image && (
+          <Tooltip title="Remove">
+            <IconButton 
+              onClick={onImageDelete}
+              sx={{ 
+                color: '#FF3B30',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 59, 48, 0.08)',
+                },
+              }}
+            >
+              <DeleteIcon fontSize="small" />
+              <Typography sx={{ ml: 0.5, fontSize: '12px', fontFamily: 'Poppins' }}>
+                Remove
+              </Typography>
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+      
       <Paper
         sx={{
           width: '100%',
@@ -142,6 +168,17 @@ const ManageAds = () => {
     bannerAd: null,
     sideAd: null,
   });
+  
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
+  
+  const [loading, setLoading] = useState({
+    mobile: false,
+    web: false
+  });
 
   const handleMobileImageChange = (type, image) => {
     setMobileAds(prev => ({ ...prev, [type]: image }));
@@ -150,15 +187,272 @@ const ManageAds = () => {
   const handleWebImageChange = (type, image) => {
     setWebAds(prev => ({ ...prev, [type]: image }));
   };
-
-  const handlePostMobileAds = () => {
-    console.log('Posting mobile ads:', mobileAds);
-    // Add your API call here
+  
+  const handleMobileImageDelete = (type) => {
+    setMobileAds(prev => ({ ...prev, [type]: null }));
+    setSnackbar({
+      open: true,
+      message: 'Mobile ad image removed',
+      severity: 'success'
+    });
+  };
+  
+  const handleWebImageDelete = (type) => {
+    setWebAds(prev => ({ ...prev, [type]: null }));
+    setSnackbar({
+      open: true,
+      message: 'Web ad image removed',
+      severity: 'success'
+    });
+  };
+  
+  const handleSnackbarClose = () => {
+    setSnackbar({
+      ...snackbar,
+      open: false,
+    });
   };
 
-  const handlePostWebAds = () => {
-    console.log('Posting web ads:', webAds);
-    // Add your API call here
+  const handlePostMobileAds = async () => {
+    try {
+      setLoading(prev => ({ ...prev, mobile: true }));
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication required. Please login again.',
+          severity: 'error'
+        });
+        return;
+      }
+      
+      // Post card ad
+      if (mobileAds.cardAd) {
+        try {
+          const cardFormData = new FormData();
+          const cardFile = await dataURLtoFile(mobileAds.cardAd, 'card_ad.jpg');
+          cardFormData.append('image', cardFile);
+          cardFormData.append('platform', 'mobile');
+          cardFormData.append('type', 'card');
+          
+          console.log('Attempting to upload card ad with field name "image"');
+          
+          const response = await axios.post('https://api.newztok.in/api/ads', cardFormData, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              // Let axios set the content type automatically
+              // 'Content-Type': 'multipart/form-data'
+            }
+          });
+          
+          console.log('Card ad posted successfully:', response.data);
+          
+          setSnackbar({
+            open: true,
+            message: 'Card ad posted successfully',
+            severity: 'success'
+          });
+        } catch (error) {
+          console.error('Error posting card ad:', error);
+          if (error.response) {
+            console.log('Server responded with:', error.response.status, error.response.data);
+          }
+          
+          setSnackbar({
+            open: true,
+            message: 'Failed to post card ad. Check console for details.',
+            severity: 'error'
+          });
+        }
+      }
+      
+      // Post popover ad
+      if (mobileAds.popoverAd) {
+        try {
+          const popoverFormData = new FormData();
+          const popoverFile = await dataURLtoFile(mobileAds.popoverAd, 'popover_ad.jpg');
+          popoverFormData.append('image', popoverFile);
+          popoverFormData.append('platform', 'mobile');
+          popoverFormData.append('type', 'popover');
+          
+          console.log('Attempting to upload popover ad with field name "image"');
+          
+          const response = await axios.post('https://api.newztok.in/api/ads', popoverFormData, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              // Let axios set the content type automatically
+              // 'Content-Type': 'multipart/form-data'
+            }
+          });
+          
+          console.log('Popover ad posted successfully:', response.data);
+          
+          setSnackbar({
+            open: true,
+            message: 'Popover ad posted successfully',
+            severity: 'success'
+          });
+        } catch (error) {
+          console.error('Error posting popover ad:', error);
+          if (error.response) {
+            console.log('Server responded with:', error.response.status, error.response.data);
+          }
+          
+          setSnackbar({
+            open: true,
+            message: 'Failed to post popover ad. Check console for details.',
+            severity: 'error'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error in mobile ads posting:', error);
+      
+      setSnackbar({
+        open: true,
+        message: 'An unexpected error occurred. Please check console for details.',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, mobile: false }));
+    }
+  };
+
+  const handlePostWebAds = async () => {
+    try {
+      setLoading(prev => ({ ...prev, web: true }));
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication required. Please login again.',
+          severity: 'error'
+        });
+        return;
+      }
+      
+      // Handle banner ad
+      if (webAds.bannerAd) {
+        try {
+          // Create a new FormData
+          const formData = new FormData();
+          
+          // Convert base64 to File
+          const bannerFile = await dataURLtoFile(webAds.bannerAd, 'banner_ad.jpg');
+          
+          // Try the field name "image" (singular)
+          formData.append('image', bannerFile);
+          formData.append('platform', 'web');
+          formData.append('type', 'banner');
+          
+          console.log('Attempting to upload banner ad with field name "image"');
+          
+          const response = await axios.post('https://api.newztok.in/api/ads', formData, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              // Let axios set the content type automatically with boundary
+              // 'Content-Type': 'multipart/form-data'
+            }
+          });
+          
+          console.log('Banner ad posted successfully:', response.data);
+          
+          setSnackbar({
+            open: true,
+            message: 'Banner ad posted successfully',
+            severity: 'success'
+          });
+        } catch (error) {
+          console.error('Error posting banner ad:', error);
+          if (error.response) {
+            console.log('Server responded with:', error.response.status, error.response.data);
+          }
+          
+          setSnackbar({
+            open: true,
+            message: 'Failed to post banner ad. Check console for details.',
+            severity: 'error'
+          });
+        }
+      }
+      
+      // Handle side ad
+      if (webAds.sideAd) {
+        try {
+          // Create a new FormData
+          const formData = new FormData();
+          
+          // Convert base64 to File
+          const sideFile = await dataURLtoFile(webAds.sideAd, 'side_ad.jpg');
+          
+          // Try the field name "image" (singular)
+          formData.append('image', sideFile);
+          formData.append('platform', 'web');
+          formData.append('type', 'side');
+          
+          console.log('Attempting to upload side ad with field name "image"');
+          
+          const response = await axios.post('https://api.newztok.in/api/ads', formData, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              // Let axios set the content type automatically with boundary
+              // 'Content-Type': 'multipart/form-data'
+            }
+          });
+          
+          console.log('Side ad posted successfully:', response.data);
+          
+          setSnackbar({
+            open: true,
+            message: 'Side ad posted successfully',
+            severity: 'success'
+          });
+        } catch (error) {
+          console.error('Error posting side ad:', error);
+          if (error.response) {
+            console.log('Server responded with:', error.response.status, error.response.data);
+          }
+          
+          setSnackbar({
+            open: true,
+            message: 'Failed to post side ad. Check console for details.',
+            severity: 'error'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error in web ads posting:', error);
+      
+      setSnackbar({
+        open: true,
+        message: 'An unexpected error occurred. Please check console for details.',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, web: false }));
+    }
+  };
+  
+  // Helper function to convert Data URL to File object
+  const dataURLtoFile = (dataUrl, filename) => {
+    return new Promise((resolve) => {
+      const arr = dataUrl.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      
+      const file = new File([u8arr], filename, { type: mime });
+      resolve(file);
+    });
   };
 
   return (
@@ -194,7 +488,7 @@ const ManageAds = () => {
             dimensions="320 × 610"
             image={mobileAds.cardAd}
             onImageChange={(img) => handleMobileImageChange('cardAd', img)}
-            onImageDelete={() => handleMobileImageChange('cardAd', null)}
+            onImageDelete={() => handleMobileImageDelete('cardAd')}
           />
         </Box>
 
@@ -215,13 +509,13 @@ const ManageAds = () => {
             dimensions="360 × 640"
             image={mobileAds.popoverAd}
             onImageChange={(img) => handleMobileImageChange('popoverAd', img)}
-            onImageDelete={() => handleMobileImageChange('popoverAd', null)}
+            onImageDelete={() => handleMobileImageDelete('popoverAd')}
           />
         </Box>
 
         <Button
           variant="contained"
-          disabled={!mobileAds.cardAd || !mobileAds.popoverAd}
+          disabled={(!mobileAds.cardAd || !mobileAds.popoverAd) || loading.mobile}
           onClick={handlePostMobileAds}
           sx={{
             mt: 2,
@@ -233,7 +527,14 @@ const ManageAds = () => {
             },
           }}
         >
-          Post Mobile Ads
+          {loading.mobile ? (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <CircularProgress size={20} sx={{ color: 'white', mr: 1 }} />
+              Posting...
+            </Box>
+          ) : (
+            'Post Mobile Ads'
+          )}
         </Button>
       </AdSection>
 
@@ -255,7 +556,7 @@ const ManageAds = () => {
             dimensions="970 × 100"
             image={webAds.bannerAd}
             onImageChange={(img) => handleWebImageChange('bannerAd', img)}
-            onImageDelete={() => handleWebImageChange('bannerAd', null)}
+            onImageDelete={() => handleWebImageDelete('bannerAd')}
           />
         </Box>
 
@@ -276,13 +577,13 @@ const ManageAds = () => {
             dimensions="380 × 350"
             image={webAds.sideAd}
             onImageChange={(img) => handleWebImageChange('sideAd', img)}
-            onImageDelete={() => handleWebImageChange('sideAd', null)}
+            onImageDelete={() => handleWebImageDelete('sideAd')}
           />
         </Box>
 
         <Button
           variant="contained"
-          disabled={!webAds.bannerAd || !webAds.sideAd}
+          disabled={(!webAds.bannerAd || !webAds.sideAd) || loading.web}
           onClick={handlePostWebAds}
           sx={{
             mt: 2,
@@ -294,9 +595,31 @@ const ManageAds = () => {
             },
           }}
         >
-          Post Web Ads
+          {loading.web ? (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <CircularProgress size={20} sx={{ color: 'white', mr: 1 }} />
+              Posting...
+            </Box>
+          ) : (
+            'Post Web Ads'
+          )}
         </Button>
       </AdSection>
+      
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={3000} 
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity={snackbar.severity || 'info'} 
+          sx={{ width: '100%', fontFamily: 'Poppins' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -16,6 +16,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  CircularProgress,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
@@ -28,6 +29,8 @@ import {
   CheckCircleOutline as CheckCircleOutlineIcon,
   BlockOutlined as BlockOutlinedIcon,
 } from '@mui/icons-material';
+import axios from 'axios';
+import { format, parseISO } from 'date-fns';
 import ViewPost from './ViewPost';
 import EditPost from './EditPost';
 
@@ -73,6 +76,30 @@ const CategoryChip = styled(Chip)(({ theme }) => ({
     backgroundColor: '#FCE4EC',
     color: '#E91E63',
   },
+  '&.national': {
+    backgroundColor: '#E3F2FD',
+    color: '#2196F3',
+  },
+  '&.sports': {
+    backgroundColor: '#E1F5FE',
+    color: '#03A9F4',
+  },
+  '&.politics': {
+    backgroundColor: '#EDE7F6',
+    color: '#673AB7',
+  },
+  '&.technology': {
+    backgroundColor: '#F3E5F5',
+    color: '#9C27B0',
+  },
+  '&.business': {
+    backgroundColor: '#E0F2F1',
+    color: '#009688',
+  },
+  '&.health': {
+    backgroundColor: '#F1F8E9',
+    color: '#8BC34A',
+  },
 }));
 
 const StyledMenuItem = styled(MenuItem)(({ theme }) => ({
@@ -88,77 +115,183 @@ const StyledMenuItem = styled(MenuItem)(({ theme }) => ({
   },
 }));
 
-const pendingPosts = [
-  {
-    headline: 'Video test by Manoranjan',
-    description: 'Testing rasia pila thare ajana by asima panda and mantu ...',
-    category: 'entertainment',
-    location: 'समस्तीपुर | Samastipur, बिहार | Bihar',
-    submittedAt: '02:16',
-    date: '16 Apr 2025',
-    author: 'Sangram Journalist',
-  },
-  {
-    headline: 'Testing news by Manoranjan',
-    description: 'Test3',
-    category: 'national',
-    location: 'वैशाली | Vaishali, बिहार | Bihar',
-    submittedAt: '02:09',
-    date: '16 Apr 2025',
-    author: 'Sangram Journalist',
-  },
-  {
-    headline: 'Testing from API by rahesh ...',
-    description: 'Sample content goes here by rajesh',
-    category: 'international',
-    location: 'अररिया | Araria, बिहार | Bihar',
-    submittedAt: '20:28',
-    date: '15 Apr 2025',
-    author: 'Sangram Journalist',
-  },
-  {
-    headline: 'Testing from API by sangram',
-    description: 'Sample content goes here',
-    category: 'national',
-    location: 'पटना | Patna, बिहार | Bihar',
-    submittedAt: '19:35',
-    date: '15 Apr 2025',
-    author: 'Sangram Journalist',
-  },
-  {
-    headline: 'झामुमो में हेमंत सोरेन पहली ...',
-    description: 'रांची। झारखंड मुक्ति मोर्चा (JMM) के 13वें केंद्रीय महाधिवेशन में ...',
-    category: 'trending',
-    location: 'रांची | Ranchi, झारखंड | Jharkhand',
-    submittedAt: '18:41',
-    date: '15 Apr 2025',
-    author: 'Tirvijay Singh',
-  },
-  {
-    headline: 'बिहार में कांग्रेस-राजद साथ लड़ेंगे ...',
-    description: 'Newztok Desk : बिहार विधानसभा चुनाव को लेकर मंगलवार को ...',
-    category: 'national',
-    location: 'पटना | Patna, बिहार | Bihar',
-    submittedAt: '18:28',
-    date: '15 Apr 2025',
-    author: 'Tirvijay Singh',
-  },
-  {
-    headline: 'बिहार में सिपाही जमीन वापस ...',
-    description: 'Newztok Desk : लोकसभा चुनाव 2024 में सीट बंटवारे को...',
-    category: 'trending',
-    location: 'पटना | Patna, बिहार | Bihar',
-    submittedAt: '17:44',
-    date: '15 Apr 2025',
-    author: 'Tirvijay Singh',
-  },
-];
-
 const PendingPosts = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
   const [viewingPost, setViewingPost] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
+  const [pendingPosts, setPendingPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return 'N/A';
+      const date = parseISO(dateString);
+      return format(date, 'dd MMM yyyy');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString || 'N/A';
+    }
+  };
+
+  // Format time for display
+  const formatTime = (dateString) => {
+    try {
+      if (!dateString) return 'N/A';
+      const date = parseISO(dateString);
+      return format(date, 'HH:mm');
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return '';
+    }
+  };
+
+  useEffect(() => {
+    const fetchPendingPosts = async () => {
+      try {
+        setLoading(true);
+        // Get the authentication token stored during login
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.error('No authentication token found for fetching pending posts');
+          setError('Authentication required. Please login again.');
+          setLoading(false);
+          return;
+        }
+
+        console.log('Fetching pending posts with auth token...');
+        // Make authenticated API request with the token
+        const response = await axios.get('https://api.newztok.in/api/dashboard/pending-posts', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        console.log('Pending posts response received:', response.data);
+        
+        // Log the full structure to help with debugging
+        console.log('Full data structure:', JSON.stringify(response.data, null, 2));
+        
+        // Extract pending posts from the response
+        if (response.data && response.data.data && response.data.data.posts && Array.isArray(response.data.data.posts)) {
+          // Posts are in response.data.data.posts
+          const formattedPosts = response.data.data.posts.map(post => ({
+            id: post.id || '',
+            headline: post.title || 'Untitled Post',
+            description: post.content?.substring(0, 80) + '...' || 'No description available',
+            category: post.category || 'uncategorized',
+            location: `${post.state || ''} ${post.district ? ', ' + post.district : ''}`,
+            state: post.state || '',
+            district: post.district || '',
+            submittedAt: formatTime(post.created_at || post.createdAt),
+            date: formatDate(post.created_at || post.createdAt),
+            author: post.username || post.journalist?.name || post.editor?.name || post.admin?.name || 'Unknown User',
+            originalData: post
+          }));
+          
+          setPendingPosts(formattedPosts);
+          console.log('Formatted pending posts:', formattedPosts);
+        } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+          // Posts are directly in response.data.data
+          const formattedPosts = response.data.data.map(post => ({
+            id: post.id || '',
+            headline: post.title || 'Untitled Post',
+            description: post.content?.substring(0, 80) + '...' || 'No description available',
+            category: post.category || 'uncategorized',
+            location: `${post.state || ''} ${post.district ? ', ' + post.district : ''}`,
+            state: post.state || '',
+            district: post.district || '',
+            submittedAt: formatTime(post.created_at || post.createdAt),
+            date: formatDate(post.created_at || post.createdAt),
+            author: post.username || post.journalist?.name || post.editor?.name || post.admin?.name || 'Unknown User',
+            originalData: post
+          }));
+          
+          setPendingPosts(formattedPosts);
+          console.log('Formatted pending posts from data array:', formattedPosts);
+        } else if (response.data && response.data.data && typeof response.data.data === 'object') {
+          // Temporary fix to log what's actually in the data
+          console.log('Data content:', response.data.data);
+          
+          // Check if data is empty but valid
+          if (Object.keys(response.data.data).length === 0) {
+            console.log('Data object is empty, showing empty posts list');
+            setPendingPosts([]);
+          } else {
+            // Try to find posts in any property of data
+            let postsFound = false;
+            for (const key in response.data.data) {
+              const value = response.data.data[key];
+              if (Array.isArray(value)) {
+                console.log(`Found array in data.${key}, using this as posts`);
+                const formattedPosts = value.map(post => ({
+                  id: post.id || '',
+                  headline: post.title || 'Untitled Post',
+                  description: post.content?.substring(0, 80) + '...' || 'No description available',
+                  category: post.category || 'uncategorized',
+                  location: `${post.state || ''} ${post.district ? ', ' + post.district : ''}`,
+                  state: post.state || '',
+                  district: post.district || '',
+                  submittedAt: formatTime(post.created_at || post.createdAt),
+                  date: formatDate(post.created_at || post.createdAt),
+                  author: post.username || post.journalist?.name || post.editor?.name || post.admin?.name || 'Unknown User',
+                  originalData: post
+                }));
+                
+                setPendingPosts(formattedPosts);
+                postsFound = true;
+                break;
+              }
+            }
+            
+            if (!postsFound) {
+              console.warn('Could not find posts array in the response data');
+              setError('Unable to locate posts in the API response.');
+            }
+          }
+        } else if (response.data && Array.isArray(response.data)) {
+          // Direct array in response
+          const formattedPosts = response.data.map(post => ({
+            id: post.id || '',
+            headline: post.title || 'Untitled Post',
+            description: post.content?.substring(0, 80) + '...' || 'No description available',
+            category: post.category || 'uncategorized',
+            location: `${post.state || ''} ${post.district ? ', ' + post.district : ''}`,
+            state: post.state || '',
+            district: post.district || '',
+            submittedAt: formatTime(post.created_at || post.createdAt),
+            date: formatDate(post.created_at || post.createdAt),
+            author: post.username || post.journalist?.name || post.editor?.name || post.admin?.name || 'Unknown User',
+            originalData: post
+          }));
+          
+          setPendingPosts(formattedPosts);
+        } else {
+          console.warn('Could not find pending posts in the expected API response structure');
+          console.log('Response structure:', typeof response.data, response.data ? Object.keys(response.data) : 'null');
+          
+          // If we have a successful response but no posts, assume empty list
+          if (response.data && response.data.success === true) {
+            console.log('API returned success but no posts, showing empty list');
+            setPendingPosts([]);
+          } else {
+            setError('Unable to load pending posts. Unexpected data format received.');
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching pending posts:', err);
+        setError('Failed to load pending posts. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPendingPosts();
+  }, []);
 
   const handleMenuOpen = (event, post) => {
     setAnchorEl(event.currentTarget);
@@ -225,110 +358,139 @@ const PendingPosts = () => {
         Pending Posts
       </Typography>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(0, 0, 0, 0.08)' }}>
-        <Table sx={{ minWidth: 650 }}>
-          <TableHead>
-            <TableRow>
-              <StyledTableCell>HEADLINE</StyledTableCell>
-              <StyledTableCell>CATEGORIES</StyledTableCell>
-              <StyledTableCell>LOCATION</StyledTableCell>
-              <StyledTableCell>SUBMITTED AT</StyledTableCell>
-              <StyledTableCell align="right">ACTIONS</StyledTableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {pendingPosts.map((post, index) => (
-              <StyledTableRow key={index}>
-                <StyledTableCell>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#1a1a1a',
-                        mb: 0.5,
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.headline}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '13px',
-                        color: '#666',
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.description}
-                    </Typography>
-                  </Box>
-                </StyledTableCell>
-                <StyledTableCell>
-                  <CategoryChip 
-                    label={post.category} 
-                    className={post.category}
-                  />
-                </StyledTableCell>
-                <StyledTableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LocationIcon sx={{ fontSize: 16, color: '#666' }} />
-                    <Typography
-                      sx={{
-                        fontSize: '13px',
-                        color: '#666',
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.location}
-                    </Typography>
-                  </Box>
-                </StyledTableCell>
-                <StyledTableCell>
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                      <TimeIcon sx={{ fontSize: 16, color: '#666' }} />
-                      <Typography
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 5 }}>
+          <CircularProgress sx={{ color: '#6B73FF' }} />
+        </Box>
+      ) : error ? (
+        <Paper 
+          elevation={0} 
+          sx={{ 
+            p: 3, 
+            textAlign: 'center', 
+            color: '#FF3B30',
+            border: '1px solid rgba(255, 59, 48, 0.2)',
+            borderRadius: 1
+          }}
+        >
+          <Typography sx={{ fontFamily: 'Poppins' }}>{error}</Typography>
+        </Paper>
+      ) : (
+        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(0, 0, 0, 0.08)' }}>
+          <Table sx={{ minWidth: 650 }}>
+            <TableHead>
+              <TableRow>
+                <StyledTableCell>HEADLINE</StyledTableCell>
+                <StyledTableCell>CATEGORIES</StyledTableCell>
+                <StyledTableCell>LOCATION</StyledTableCell>
+                <StyledTableCell>SUBMITTED AT</StyledTableCell>
+                <StyledTableCell align="right">ACTIONS</StyledTableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {pendingPosts.length > 0 ? (
+                pendingPosts.map((post, index) => (
+                  <StyledTableRow key={post.id || index}>
+                    <StyledTableCell>
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: '#1a1a1a',
+                            mb: 0.5,
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.headline}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '13px',
+                            color: '#666',
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.description}
+                        </Typography>
+                      </Box>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <CategoryChip 
+                        label={post.category} 
+                        className={post.category.toLowerCase()}
+                      />
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LocationIcon sx={{ fontSize: 16, color: '#666' }} />
+                        <Typography
+                          sx={{
+                            fontSize: '13px',
+                            color: '#666',
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.location || 'No location data'}
+                        </Typography>
+                      </Box>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                          <TimeIcon sx={{ fontSize: 16, color: '#666' }} />
+                          <Typography
+                            sx={{
+                              fontSize: '13px',
+                              color: '#666',
+                              fontFamily: 'Poppins',
+                            }}
+                          >
+                            {post.submittedAt} · {post.date}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PersonIcon sx={{ fontSize: 16, color: '#666' }} />
+                          <Typography
+                            sx={{
+                              fontSize: '13px',
+                              color: '#2196F3',
+                              fontFamily: 'Poppins',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {post.author}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </StyledTableCell>
+                    <StyledTableCell align="right">
+                      <IconButton
+                        onClick={(e) => handleMenuOpen(e, post)}
                         sx={{
-                          fontSize: '13px',
-                          color: '#666',
-                          fontFamily: 'Poppins',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                          },
                         }}
                       >
-                        {post.submittedAt} · {post.date}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <PersonIcon sx={{ fontSize: 16, color: '#666' }} />
-                      <Typography
-                        sx={{
-                          fontSize: '13px',
-                          color: '#2196F3',
-                          fontFamily: 'Poppins',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {post.author}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </StyledTableCell>
-                <StyledTableCell align="right">
-                  <IconButton
-                    onClick={(e) => handleMenuOpen(e, post)}
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      },
-                    }}
-                  >
-                    <MoreVertIcon />
-                  </IconButton>
-                </StyledTableCell>
-              </StyledTableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                        <MoreVertIcon />
+                      </IconButton>
+                    </StyledTableCell>
+                  </StyledTableRow>
+                ))
+              ) : (
+                <StyledTableRow>
+                  <StyledTableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                    <Typography sx={{ fontFamily: 'Poppins', color: '#666' }}>
+                      No pending posts found
+                    </Typography>
+                  </StyledTableCell>
+                </StyledTableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <Menu
         anchorEl={anchorEl}
@@ -343,36 +505,6 @@ const PendingPosts = () => {
           },
         }}
       >
-        <StyledMenuItem onClick={() => handleAction('view')}>
-          <ListItemIcon>
-            <VisibilityOutlinedIcon sx={{ fontSize: 20, color: '#666' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="View" 
-            primaryTypographyProps={{ 
-              style: { 
-                fontFamily: 'Poppins',
-                fontSize: '14px',
-                color: '#1a1a1a',
-              }
-            }}
-          />
-        </StyledMenuItem>
-        <StyledMenuItem onClick={() => handleAction('edit')}>
-          <ListItemIcon>
-            <EditOutlinedIcon sx={{ fontSize: 20, color: '#666' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Edit" 
-            primaryTypographyProps={{ 
-              style: { 
-                fontFamily: 'Poppins',
-                fontSize: '14px',
-                color: '#1a1a1a',
-              }
-            }}
-          />
-        </StyledMenuItem>
         <StyledMenuItem onClick={() => handleAction('approve')}>
           <ListItemIcon>
             <CheckCircleOutlineIcon sx={{ fontSize: 20, color: '#4CAF50' }} />

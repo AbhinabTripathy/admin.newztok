@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Box,
   Typography,
@@ -9,19 +10,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   Chip,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
+  CircularProgress,
 } from '@mui/material';
 import {
-  MoreVert as MoreVertIcon,
   RemoveCircleOutline as RemoveCircleOutlineIcon,
-  Visibility as VisibilityIcon,
-  Edit as EditIcon,
-  DeleteOutline as DeleteIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import RejectedViewPost from './RejectedViewPost';
@@ -58,90 +51,100 @@ const RejectedChip = styled(Chip)({
   borderRadius: '4px',
 });
 
-const StyledMenuItem = styled(MenuItem)({
-  padding: '8px 16px',
-  minHeight: '40px',
-  fontFamily: 'Poppins',
-  fontSize: '14px',
-  '& .MuiListItemIcon-root': {
-    minWidth: '32px',
-  },
-  '&:hover': {
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-  },
-});
-
-const rejectedPosts = [
-  {
-    headline: 'Test 1',
-    subheadline: 'Royal Enfield',
-    type: 'Standard',
-    category: 'Entertainment',
-    author: 'Rajesh Suresh',
-    date: 'Apr 03, 2025 · 12:00 PM',
-    location: {
-      city: 'पटना | Patna',
-      state: 'बिहार | Bihar'
-    }
-  },
-  {
-    headline: 'Ywsd',
-    subheadline: 'Test',
-    type: 'Standard',
-    category: 'Sports',
-    author: 'Rajesh Suresh',
-    date: 'Apr 03, 2025 · 12:41 PM',
-    location: {
-      city: 'पटना | Patna',
-      state: 'बिहार | Bihar'
-    }
-  },
-  {
-    headline: 'Test',
-    subheadline: 'Test',
-    type: 'Standard',
-    category: 'International',
-    author: 'Rajesh Suresh',
-    date: 'Apr 03, 2025 · 13:08 PM',
-    location: {
-      city: 'पटना | Patna',
-      state: 'बिहार | Bihar'
-    }
-  },
-  {
-    headline: 'asdfghjk',
-    subheadline: 'sdfghj',
-    type: 'Standard',
-    category: 'Sports',
-    author: 'Rahul Singh',
-    date: 'Apr 03, 2025 · 17:58 PM',
-    location: {
-      city: 'रांची | Ranchi',
-      state: 'झारखंड | Jharkhand'
-    }
-  },
-  {
-    headline: 'IPL fixing playing satta',
-    subheadline: 'CSK Loose from RCB',
-    type: 'Standard',
-    category: 'Sports',
-    author: 'Rajesh Suresh',
-    date: 'Apr 04, 2025 · 16:13 PM',
-    location: {
-      city: 'पटना | Patna',
-      state: 'बिहार | Bihar'
-    }
-  }
-];
-
 const RejectedPosts = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
   const [viewingPost, setViewingPost] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
+  const [rejectedPosts, setRejectedPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 0,
+    currentPage: 1
+  });
+
+  useEffect(() => {
+    const fetchRejectedNews = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching rejected news data...');
+        
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          throw new Error('Authentication token not found');
+        }
+
+        const response = await axios.get('https://api.newztok.in/api/dashboard/rejected-news', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        console.log('Rejected news fetched successfully:', response.data);
+        
+        // Check if the response has the expected structure
+        if (response.data.success && response.data.data && response.data.data.news) {
+          const newsData = response.data.data.news;
+          setRejectedPosts(newsData);
+          setPagination({
+            total: response.data.data.total || 0,
+            totalPages: response.data.data.totalPages || 0,
+            currentPage: response.data.data.currentPage || 1
+          });
+          
+          // Log the location structure from the first post if available
+          if (newsData.length > 0) {
+            console.log('Sample post data structure:', {
+              headline: newsData[0].headline,
+              location: newsData[0].location,
+              city: newsData[0].city,
+              state: newsData[0].state,
+              author: newsData[0].author
+            });
+            
+            // Log more detailed information about location data across all posts
+            console.log('Location data analysis:', {
+              totalPosts: newsData.length,
+              postsWithLocationObject: newsData.filter(post => post.location && typeof post.location === 'object').length,
+              postsWithLocationString: newsData.filter(post => post.location && typeof post.location === 'string').length,
+              postsWithNoLocation: newsData.filter(post => !post.location).length,
+              postsWithCityStateProps: newsData.filter(post => post.city || post.state).length,
+              firstFewPostsLocationData: newsData.slice(0, 3).map(post => ({
+                postId: post._id,
+                location: post.location,
+                city: post.city,
+                state: post.state
+              }))
+            });
+          }
+          
+          console.log('Processed news data:', newsData);
+        } else {
+          console.error('Unexpected API response structure:', response.data);
+          setError('Unexpected API response structure');
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching rejected news:', err);
+        console.log('Error details:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status
+        });
+        setError(err.message || 'Failed to fetch rejected news');
+        setLoading(false);
+      }
+    };
+
+    fetchRejectedNews();
+  }, []);
 
   const handleMenuOpen = (event, post) => {
-    setAnchorEl(event.currentTarget);
+    setAnchorEl(event?.currentTarget);
     setSelectedPost(post);
   };
 
@@ -222,182 +225,142 @@ const RejectedPosts = () => {
         These posts were rejected by editors and won't be published unless re-evaluated.
       </Typography>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(0, 0, 0, 0.08)' }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <StyledTableCell>HEADLINE</StyledTableCell>
-              <StyledTableCell>TYPE / CATEGORY</StyledTableCell>
-              <StyledTableCell>AUTHOR</StyledTableCell>
-              <StyledTableCell align="right">ACTIONS</StyledTableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rejectedPosts.map((post, index) => (
-              <StyledTableRow key={index}>
-                <StyledTableCell>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#1a1a1a',
-                        mb: 0.5,
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.headline}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '13px',
-                        color: '#666',
-                        mb: 1,
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.subheadline}
-                    </Typography>
-                    <RejectedChip
-                      label="Rejected"
-                      icon={<RemoveCircleOutlineIcon style={{ fontSize: 16 }} />}
-                    />
-                  </Box>
-                </StyledTableCell>
-                <StyledTableCell>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: '14px',
-                        color: '#1a1a1a',
-                        mb: 0.5,
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.type}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '13px',
-                        color: '#666',
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.category}
-                    </Typography>
-                  </Box>
-                </StyledTableCell>
-                <StyledTableCell>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: '14px',
-                        color: '#2196F3',
-                        mb: 0.5,
-                        fontFamily: 'Poppins',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {post.author}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '13px',
-                        color: '#666',
-                        mb: 0.5,
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.date}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '13px',
-                        color: '#666',
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.location.city}, {post.location.state}
-                    </Typography>
-                  </Box>
-                </StyledTableCell>
-                <StyledTableCell align="right">
-                  <IconButton
-                    onClick={(e) => handleMenuOpen(e, post)}
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      },
-                    }}
-                  >
-                    <MoreVertIcon />
-                  </IconButton>
-                </StyledTableCell>
-              </StyledTableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        PaperProps={{
-          sx: {
-            mt: 0.5,
-            boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
-            borderRadius: '4px',
-            minWidth: '180px',
-          },
-        }}
-      >
-        <StyledMenuItem onClick={() => handleAction('view')}>
-          <ListItemIcon>
-            <VisibilityIcon sx={{ fontSize: 20, color: '#666' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="View" 
-            primaryTypographyProps={{ 
-              style: { 
-                fontFamily: 'Poppins',
-                fontSize: '14px',
-                color: '#1a1a1a',
-              }
-            }}
-          />
-        </StyledMenuItem>
-        <StyledMenuItem onClick={() => handleAction('edit')}>
-          <ListItemIcon>
-            <EditIcon sx={{ fontSize: 20, color: '#666' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Edit" 
-            primaryTypographyProps={{ 
-              style: { 
-                fontFamily: 'Poppins',
-                fontSize: '14px',
-                color: '#1a1a1a',
-              }
-            }}
-          />
-        </StyledMenuItem>
-        <StyledMenuItem onClick={() => handleAction('delete')}>
-          <ListItemIcon>
-            <DeleteIcon sx={{ fontSize: 20, color: '#FF3B30' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Delete" 
-            primaryTypographyProps={{ 
-              style: { 
-                fontFamily: 'Poppins',
-                fontSize: '14px',
-                color: '#FF3B30',
-              }
-            }}
-          />
-        </StyledMenuItem>
-      </Menu>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Typography color="error" sx={{ my: 2 }}>
+          {error}
+        </Typography>
+      ) : (
+        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(0, 0, 0, 0.08)' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <StyledTableCell>HEADLINE</StyledTableCell>
+                <StyledTableCell>TYPE / CATEGORY</StyledTableCell>
+                <StyledTableCell>AUTHOR</StyledTableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rejectedPosts.length > 0 ? (
+                rejectedPosts.map((post, index) => (
+                  <StyledTableRow key={post._id || index}>
+                    <StyledTableCell>
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: '#1a1a1a',
+                            mb: 0.5,
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.headline || 'No headline'}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '13px',
+                            color: '#666',
+                            mb: 1,
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.subheadline || 'No subheadline'}
+                        </Typography>
+                        <RejectedChip
+                          label="Rejected"
+                          icon={<RemoveCircleOutlineIcon style={{ fontSize: 16 }} />}
+                        />
+                      </Box>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontSize: '14px',
+                            color: '#1a1a1a',
+                            mb: 0.5,
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.type ? post.type.charAt(0).toUpperCase() + post.type.slice(1) : 'N/A'}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '13px',
+                            color: '#666',
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.category ? post.category.charAt(0).toUpperCase() + post.category.slice(1) : 'N/A'}
+                        </Typography>
+                      </Box>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontSize: '14px',
+                            color: '#2196F3',
+                            mb: 0.5,
+                            fontFamily: 'Poppins',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {post.author?.name || post.author || 'Unknown'}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '13px',
+                            color: '#666',
+                            mb: 0.5,
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.rejectedAt ? new Date(post.rejectedAt).toLocaleString('en-US', {
+                            month: 'short',
+                            day: '2-digit', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : 'Date not available'}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '13px',
+                            color: '#666',
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.location ? 
+                            (typeof post.location === 'object' && (post.location.city || post.location.state) ? 
+                              `${post.location.city || ''} ${post.location.state ? `, ${post.location.state}` : ''}`.trim() : 
+                              typeof post.location === 'string' ? post.location : 'Location not available'
+                            ) : 
+                            (post.city || post.state ? 
+                              `${post.city || ''} ${post.state ? `, ${post.state}` : ''}`.trim() : 
+                              'Location not available'
+                            )
+                          }
+                        </Typography>
+                      </Box>
+                    </StyledTableCell>
+                  </StyledTableRow>
+                ))
+              ) : (
+                <StyledTableRow>
+                  <StyledTableCell colSpan={3} align="center">
+                    No rejected posts found
+                  </StyledTableCell>
+                </StyledTableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
     </Box>
   );
 };

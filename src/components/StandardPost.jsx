@@ -133,7 +133,7 @@ const StandardPost = () => {
 
       // Create axios instance with default config
       const axiosInstance = axios.create({
-        baseURL: '/api',
+        baseURL: 'https://api.newztok.in',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -143,7 +143,7 @@ const StandardPost = () => {
         maxBodyLength: 50 * 1024 * 1024, // 50MB
       });
 
-      const response = await axiosInstance.post('/news/create', formDataToSend);
+      const response = await axiosInstance.post('/api/news/admin/create', formDataToSend);
 
       console.log('API Response:', response.data);
 

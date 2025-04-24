@@ -23,6 +23,7 @@ import {
   Settings as SettingsIcon,
   ExitToApp as LogoutIcon,
 } from '@mui/icons-material';
+import axios from 'axios';
 
 const StyledListItem = styled(ListItem)(({ theme, selected }) => ({
   margin: '4px 0',
@@ -76,6 +77,58 @@ const Sidebar = () => {
   const handleItemClick = (path) => {
     console.log('Navigating to:', path);
     navigate(path);
+  };
+  
+  const handleLogout = async () => {
+    try {
+      console.log('Logout initiated...');
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.log('No token found in localStorage');
+        localStorage.removeItem('token');
+        navigate('/login');
+        return;
+      }
+
+      console.log('Token found, sending logout request...');
+      // Call the logout endpoint with GET method
+      const response = await axios.get('https://api.newztok.in/api/auth/logout', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log('Logout API response:', response.data);
+      console.log('Logout successful!');
+
+      // Remove token from localStorage
+      localStorage.removeItem('token');
+      console.log('Token removed from localStorage');
+      
+      // Remove Authorization header for future requests
+      delete axios.defaults.headers.common['Authorization'];
+      console.log('Authorization header removed');
+      
+      // Redirect to login page
+      console.log('Redirecting to login page...');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method
+      });
+      
+      // Even if logout fails, redirect to login and clear token
+      localStorage.removeItem('token');
+      console.log('Token removed from localStorage after error');
+      console.log('Redirecting to login page after error...');
+      navigate('/login');
+    }
   };
 
   return (
@@ -166,6 +219,7 @@ const Sidebar = () => {
       <Box sx={{ p: 1.5, borderTop: '1px solid rgba(0, 0, 0, 0.08)' }}>
         <StyledListItem
           button
+          onClick={handleLogout}
           sx={{
             minHeight: 42,
             '&:hover': {

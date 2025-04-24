@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -8,20 +8,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   Paper,
   styled,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import axios from 'axios';
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
   fontFamily: 'Poppins',
@@ -44,19 +37,6 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
   },
 }));
 
-const StyledMenuItem = styled(MenuItem)(({ theme }) => ({
-  padding: '8px 16px',
-  minHeight: '40px',
-  fontFamily: 'Poppins',
-  fontSize: '14px',
-  '& .MuiListItemIcon-root': {
-    minWidth: '32px',
-  },
-  '&:hover': {
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-  },
-}));
-
 const FeaturedBadge = styled('span')(({ theme }) => ({
   backgroundColor: 'rgba(76, 175, 80, 0.1)',
   color: '#4CAF50',
@@ -70,66 +50,90 @@ const FeaturedBadge = styled('span')(({ theme }) => ({
   gap: '4px',
 }));
 
-const posts = [
-  {
-    headline: 'IIT Kharagpur : भारत का पहला IIT',
-    description: 'भारतीय प्रौद्योगिकी संस्थान खड़गपुर (IIT खड़गपुर) &nbsp; भारतीय प्रौद्यो...',
-    type: 'Video',
-    category: 'National',
-    author: 'Prakash Nanda',
-    location: 'पटना | Patna, बिहार | Bihar',
-    date: 'Mar 25, 2025 · 20:06 PM',
-    featured: true,
-  },
-  {
-    headline: 'नेपाली नववर्ष पर वीडियो संदेश जारी कर पूर्व राजा ज्ञानेंद्र क्या...',
-    description: 'अशोक दाहाल पटना,बीबीसी न्यूज नेपाली, काठमांड से 16 अप्रैल 202...',
-    type: 'Video',
-    category: 'National',
-    author: 'Sangram Sundaray',
-    location: 'खगड़िया | Khagaria, उत्तर प्रदेश | Uttar Pradesh',
-    date: 'Apr 16, 2025 · 12:15 PM',
-    featured: true,
-  },
-  {
-    headline: 'नेशनल हेराल्ड मनी लॉन्ड्रिंग केस में ईडी ने राहुल-सोनिया के खि...',
-    description: 'Newztok Desk : नेशनल हेराल्ड मामले में ईडी ने पूर्व कांग्रेस अध्यक्ष सोनिय...',
-    type: 'Standard',
-    category: 'Trending',
-    author: 'tirvijay singh',
-    location: 'पटना | Patna, बिहार | Bihar',
-    date: 'Apr 15, 2025 · 18:50 PM',
-    featured: true,
-  },
-  {
-    headline: 'आईपीएल में मुंबई ने रोका दिल्ली का विजय रथ',
-    description: 'Newztok Desk : &nbsp;मुंबई इंडियंस ने दिल्ली कैपिटल्स को 12 रन से हराकर...',
-    type: 'Standard',
-    category: 'Sports',
-    author: 'tirvijay singh',
-    location: 'पटना | Patna, बिहार | Bihar',
-    date: 'Apr 14, 2025 · 09:13 AM',
-    featured: true,
-  },
-];
-
 const Posts = () => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedPost, setSelectedPost] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const handleMenuOpen = (event, post) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedPost(post);
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setError('Authentication required. Please login again.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await axios.get('https://api.newztok.in/api/news/public', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('API Response:', response.data);
+      
+      if (response.data && response.data.data) {
+        // Format the data to match our component structure
+        const formattedPosts = response.data.data.map(post => {
+          // Format location data from state and district with capitalized first letters
+          const state = post.state ? capitalizeFirstLetter(post.state) : '';
+          const district = post.district ? capitalizeFirstLetter(post.district) : '';
+          let locationText = '';
+          
+          if (state && district) {
+            // Show state first, then district
+            locationText = `${state} | ${district}`;
+          } else if (state) {
+            locationText = state;
+          } else if (district) {
+            locationText = district;
+          } else {
+            locationText = 'Location not specified';
+          }
+          
+          return {
+            headline: post.title || 'No Title',
+            description: post.description || 'No Description',
+            type: post.postType || 'Standard',
+            category: post.categoryType || 'Uncategorized',
+            author: post.journalist?.username || post.editor?.username || post.admin?.username || 'Unknown',
+            location: locationText,
+            state: state,
+            district: district,
+            date: new Date(post.createdAt).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            featured: post.featured || false
+          };
+        });
+        
+        setPosts(formattedPosts);
+      } else {
+        setPosts([]);
+        setError('No posts found');
+      }
+    } catch (err) {
+      console.error('Error fetching posts:', err);
+      setError(err.response?.data?.message || 'Failed to fetch posts. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedPost(null);
-  };
-
-  const handleAction = (action) => {
-    console.log(action, selectedPost);
-    handleMenuClose();
+  // Helper function to capitalize first letter
+  const capitalizeFirstLetter = (string) => {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
   return (
@@ -160,200 +164,128 @@ const Posts = () => {
         Review all approved and featured posts submitted by your team.
       </Typography>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(0, 0, 0, 0.08)' }}>
-        <Table sx={{ minWidth: 650 }}>
-          <TableHead>
-            <TableRow>
-              <StyledTableCell>HEADLINE</StyledTableCell>
-              <StyledTableCell>TYPE / CATEGORY</StyledTableCell>
-              <StyledTableCell>AUTHOR</StyledTableCell>
-              <StyledTableCell align="right">ACTIONS</StyledTableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {posts.map((post, index) => (
-              <StyledTableRow key={index}>
-                <StyledTableCell>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#1a1a1a',
-                        mb: 0.5,
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.headline}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      ) : (
+        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(0, 0, 0, 0.08)' }}>
+          <Table sx={{ minWidth: 650 }}>
+            <TableHead>
+              <TableRow>
+                <StyledTableCell>HEADLINE</StyledTableCell>
+                <StyledTableCell>TYPE / CATEGORY</StyledTableCell>
+                <StyledTableCell>AUTHOR</StyledTableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {posts.length === 0 ? (
+                <StyledTableRow>
+                  <StyledTableCell colSpan={3} align="center">
+                    <Typography sx={{ py: 3, fontFamily: 'Poppins' }}>
+                      No posts found
                     </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '13px',
-                        color: '#666',
-                        mb: 1,
-                        fontFamily: 'Poppins',
-                      }}
-                    >
-                      {post.description}
-                    </Typography>
-                    {post.featured && (
-                      <FeaturedBadge>
-                        <CheckCircleIcon sx={{ fontSize: 14 }} />
-                        Featured
-                      </FeaturedBadge>
-                    )}
-                  </Box>
-                </StyledTableCell>
-                <StyledTableCell>
-                  <Typography
-                    sx={{
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#1a1a1a',
-                      mb: 0.5,
-                      fontFamily: 'Poppins',
-                    }}
-                  >
-                    {post.type}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: '13px',
-                      color: '#666',
-                      fontFamily: 'Poppins',
-                    }}
-                  >
-                    {post.category}
-                  </Typography>
-                </StyledTableCell>
-                <StyledTableCell>
-                  <Typography
-                    sx={{
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#1a1a1a',
-                      mb: 0.5,
-                      fontFamily: 'Poppins',
-                    }}
-                  >
-                    {post.author}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: '13px',
-                      color: '#666',
-                      mb: 0.5,
-                      fontFamily: 'Poppins',
-                    }}
-                  >
-                    {post.location}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: '13px',
-                      color: '#666',
-                      fontFamily: 'Poppins',
-                    }}
-                  >
-                    {post.date}
-                  </Typography>
-                </StyledTableCell>
-                <StyledTableCell align="right">
-                  <IconButton
-                    onClick={(e) => handleMenuOpen(e, post)}
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      },
-                    }}
-                  >
-                    <MoreVertIcon />
-                  </IconButton>
-                </StyledTableCell>
-              </StyledTableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        PaperProps={{
-          sx: {
-            mt: 0.5,
-            boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
-            borderRadius: '8px',
-            minWidth: '160px',
-          },
-        }}
-      >
-        <StyledMenuItem onClick={() => handleAction('unfeature')}>
-          <ListItemIcon>
-            <StarBorderIcon sx={{ fontSize: 20, color: '#666' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Unfeature" 
-            primaryTypographyProps={{ 
-              style: { 
-                fontFamily: 'Poppins',
-                fontSize: '14px',
-              }
-            }}
-          />
-        </StyledMenuItem>
-        <StyledMenuItem onClick={() => handleAction('view')}>
-          <ListItemIcon>
-            <VisibilityOutlinedIcon sx={{ fontSize: 20, color: '#666' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="View" 
-            primaryTypographyProps={{ 
-              style: { 
-                fontFamily: 'Poppins',
-                fontSize: '14px',
-              }
-            }}
-          />
-        </StyledMenuItem>
-        <StyledMenuItem onClick={() => handleAction('edit')}>
-          <ListItemIcon>
-            <EditOutlinedIcon sx={{ fontSize: 20, color: '#666' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Edit" 
-            primaryTypographyProps={{ 
-              style: { 
-                fontFamily: 'Poppins',
-                fontSize: '14px',
-              }
-            }}
-          />
-        </StyledMenuItem>
-        <StyledMenuItem 
-          onClick={() => handleAction('delete')}
-          sx={{
-            color: '#FF3B30',
-            '& .MuiListItemIcon-root': {
-              color: '#FF3B30',
-            },
-          }}
-        >
-          <ListItemIcon>
-            <DeleteOutlineIcon sx={{ fontSize: 20 }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Delete" 
-            primaryTypographyProps={{ 
-              style: { 
-                fontFamily: 'Poppins',
-                fontSize: '14px',
-              }
-            }}
-          />
-        </StyledMenuItem>
-      </Menu>
+                  </StyledTableCell>
+                </StyledTableRow>
+              ) : (
+                posts.map((post, index) => (
+                  <StyledTableRow key={index}>
+                    <StyledTableCell>
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: '#1a1a1a',
+                            mb: 0.5,
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.headline}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '13px',
+                            color: '#666',
+                            mb: 1,
+                            fontFamily: 'Poppins',
+                          }}
+                        >
+                          {post.description}
+                        </Typography>
+                        {post.featured && (
+                          <FeaturedBadge>
+                            <CheckCircleIcon sx={{ fontSize: 14 }} />
+                            Featured
+                          </FeaturedBadge>
+                        )}
+                      </Box>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Typography
+                        sx={{
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          color: '#1a1a1a',
+                          mb: 0.5,
+                          fontFamily: 'Poppins',
+                        }}
+                      >
+                        {post.type}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: '13px',
+                          color: '#666',
+                          fontFamily: 'Poppins',
+                        }}
+                      >
+                        {post.category}
+                      </Typography>
+                    </StyledTableCell>
+                    <StyledTableCell>
+                      <Typography
+                        sx={{
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          color: '#1a1a1a',
+                          mb: 0.5,
+                          fontFamily: 'Poppins',
+                        }}
+                      >
+                        {post.author}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: '13px',
+                          color: '#666',
+                          mb: 0.5,
+                          fontFamily: 'Poppins',
+                        }}
+                      >
+                        {post.location}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: '13px',
+                          color: '#666',
+                          fontFamily: 'Poppins',
+                        }}
+                      >
+                        {post.date}
+                      </Typography>
+                    </StyledTableCell>
+                  </StyledTableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
     </Box>
   );
 };
