@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -10,6 +10,7 @@ import {
   Snackbar,
   Alert,
   CircularProgress,
+  TextField,
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -162,11 +163,15 @@ const ManageAds = () => {
   const [mobileAds, setMobileAds] = useState({
     cardAd: null,
     popoverAd: null,
+    cardRedirectUrl: '',
+    popoverRedirectUrl: '',
   });
 
   const [webAds, setWebAds] = useState({
     bannerAd: null,
     sideAd: null,
+    bannerRedirectUrl: '',
+    sideRedirectUrl: '',
   });
   
   const [snackbar, setSnackbar] = useState({
@@ -180,12 +185,68 @@ const ManageAds = () => {
     web: false
   });
 
+  // Load existing ads on component mount
+  useEffect(() => {
+    fetchExistingAds();
+  }, []);
+
+  const fetchExistingAds = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get('https://api.newztok.in/api/ads', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data && Array.isArray(response.data.data)) {
+        const ads = response.data.data;
+        
+        // Process mobile ads
+        const cardAd = ads.find(ad => ad.platform === 'mobile' && ad.type === 'card');
+        const popoverAd = ads.find(ad => ad.platform === 'mobile' && ad.type === 'popover');
+        
+        // Process web ads
+        const bannerAd = ads.find(ad => ad.platform === 'web' && ad.type === 'banner');
+        const sideAd = ads.find(ad => ad.platform === 'web' && ad.type === 'side');
+
+        setMobileAds(prev => ({
+          ...prev,
+          cardAd: cardAd ? cardAd.imageUrl : null,
+          popoverAd: popoverAd ? popoverAd.imageUrl : null,
+          cardRedirectUrl: cardAd ? cardAd.redirectUrl || '' : '',
+          popoverRedirectUrl: popoverAd ? popoverAd.redirectUrl || '' : '',
+        }));
+
+        setWebAds(prev => ({
+          ...prev,
+          bannerAd: bannerAd ? bannerAd.imageUrl : null,
+          sideAd: sideAd ? sideAd.imageUrl : null,
+          bannerRedirectUrl: bannerAd ? bannerAd.redirectUrl || '' : '',
+          sideRedirectUrl: sideAd ? sideAd.redirectUrl || '' : '',
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching existing ads:', error);
+    }
+  };
+
   const handleMobileImageChange = (type, image) => {
     setMobileAds(prev => ({ ...prev, [type]: image }));
   };
 
   const handleWebImageChange = (type, image) => {
     setWebAds(prev => ({ ...prev, [type]: image }));
+  };
+
+  const handleMobileRedirectChange = (type, url) => {
+    setMobileAds(prev => ({ ...prev, [type]: url }));
+  };
+
+  const handleWebRedirectChange = (type, url) => {
+    setWebAds(prev => ({ ...prev, [type]: url }));
   };
   
   const handleMobileImageDelete = (type) => {
@@ -236,6 +297,7 @@ const ManageAds = () => {
           cardFormData.append('image', cardFile);
           cardFormData.append('platform', 'mobile');
           cardFormData.append('type', 'card');
+          cardFormData.append('redirectUrl', mobileAds.cardRedirectUrl);
           
           console.log('Attempting to upload card ad with field name "image"');
           
@@ -276,6 +338,7 @@ const ManageAds = () => {
           popoverFormData.append('image', popoverFile);
           popoverFormData.append('platform', 'mobile');
           popoverFormData.append('type', 'popover');
+          popoverFormData.append('redirectUrl', mobileAds.popoverRedirectUrl);
           
           console.log('Attempting to upload popover ad with field name "image"');
           
@@ -348,6 +411,7 @@ const ManageAds = () => {
           formData.append('image', bannerFile);
           formData.append('platform', 'web');
           formData.append('type', 'banner');
+          formData.append('redirectUrl', webAds.bannerRedirectUrl);
           
           console.log('Attempting to upload banner ad with field name "image"');
           
@@ -393,6 +457,7 @@ const ManageAds = () => {
           formData.append('image', sideFile);
           formData.append('platform', 'web');
           formData.append('type', 'side');
+          formData.append('redirectUrl', webAds.sideRedirectUrl);
           
           console.log('Attempting to upload side ad with field name "image"');
           
@@ -490,6 +555,15 @@ const ManageAds = () => {
             onImageChange={(img) => handleMobileImageChange('cardAd', img)}
             onImageDelete={() => handleMobileImageDelete('cardAd')}
           />
+          <TextField
+            fullWidth
+            label="Redirect URL"
+            placeholder="https://example.com"
+            value={mobileAds.cardRedirectUrl}
+            onChange={(e) => handleMobileRedirectChange('cardRedirectUrl', e.target.value)}
+            margin="normal"
+            sx={{ mb: 2 }}
+          />
         </Box>
 
         <Box sx={{ mb: 3 }}>
@@ -510,6 +584,15 @@ const ManageAds = () => {
             image={mobileAds.popoverAd}
             onImageChange={(img) => handleMobileImageChange('popoverAd', img)}
             onImageDelete={() => handleMobileImageDelete('popoverAd')}
+          />
+          <TextField
+            fullWidth
+            label="Redirect URL"
+            placeholder="https://example.com"
+            value={mobileAds.popoverRedirectUrl}
+            onChange={(e) => handleMobileRedirectChange('popoverRedirectUrl', e.target.value)}
+            margin="normal"
+            sx={{ mb: 2 }}
           />
         </Box>
 
@@ -558,6 +641,15 @@ const ManageAds = () => {
             onImageChange={(img) => handleWebImageChange('bannerAd', img)}
             onImageDelete={() => handleWebImageDelete('bannerAd')}
           />
+          <TextField
+            fullWidth
+            label="Redirect URL"
+            placeholder="https://example.com"
+            value={webAds.bannerRedirectUrl}
+            onChange={(e) => handleWebRedirectChange('bannerRedirectUrl', e.target.value)}
+            margin="normal"
+            sx={{ mb: 2 }}
+          />
         </Box>
 
         <Box sx={{ mb: 3 }}>
@@ -578,6 +670,15 @@ const ManageAds = () => {
             image={webAds.sideAd}
             onImageChange={(img) => handleWebImageChange('sideAd', img)}
             onImageDelete={() => handleWebImageDelete('sideAd')}
+          />
+          <TextField
+            fullWidth
+            label="Redirect URL"
+            placeholder="https://example.com"
+            value={webAds.sideRedirectUrl}
+            onChange={(e) => handleWebRedirectChange('sideRedirectUrl', e.target.value)}
+            margin="normal"
+            sx={{ mb: 2 }}
           />
         </Box>
 
