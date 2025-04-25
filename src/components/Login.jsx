@@ -136,7 +136,7 @@ const Login = () => {
             fontFamily: 'Poppins',
           }}
         >
-          Editorial Portal
+          Admin Portal
         </Typography>
 
         <Typography
