@@ -228,8 +228,8 @@ const PendingPosts = () => {
         // Posts are in response.data.data.posts
         const formattedPosts = response.data.data.posts.map(post => ({
           id: post.id || '',
-          headline: post.title || 'Untitled Post',
-          description: post.content?.substring(0, 80) + '...' || 'No description available',
+          headline: post.title || post.headline || 'Untitled Post',
+          description: post.content ? post.content.substring(0, 80) + '...' : post.description || 'No description available',
           category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
           location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
           state: capitalizeFirstLetter(post.state) || '',
@@ -246,8 +246,8 @@ const PendingPosts = () => {
         // Posts are directly in response.data.data
         const formattedPosts = response.data.data.map(post => ({
           id: post.id || '',
-          headline: post.title || 'Untitled Post',
-          description: post.content?.substring(0, 80) + '...' || 'No description available',
+          headline: post.title || post.headline || 'Untitled Post',
+          description: post.content ? post.content.substring(0, 80) + '...' : post.description || 'No description available',
           category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
           location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
           state: capitalizeFirstLetter(post.state) || '',
@@ -277,8 +277,8 @@ const PendingPosts = () => {
               console.log(`Found array in data.${key}, using this as posts`);
               const formattedPosts = value.map(post => ({
                 id: post.id || '',
-                headline: post.title || 'Untitled Post',
-                description: post.content?.substring(0, 80) + '...' || 'No description available',
+                headline: post.title || post.headline || 'Untitled Post',
+                description: post.content ? post.content.substring(0, 80) + '...' : post.description || 'No description available',
                 category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
                 location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
                 state: capitalizeFirstLetter(post.state) || '',
@@ -304,8 +304,8 @@ const PendingPosts = () => {
         // Direct array in response
         const formattedPosts = response.data.map(post => ({
           id: post.id || '',
-          headline: post.title || 'Untitled Post',
-          description: post.content?.substring(0, 80) + '...' || 'No description available',
+          headline: post.title || post.headline || 'Untitled Post',
+          description: post.content ? post.content.substring(0, 80) + '...' : post.description || 'No description available',
           category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
           location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
           state: capitalizeFirstLetter(post.state) || '',
@@ -583,20 +583,10 @@ const PendingPosts = () => {
                             fontSize: '14px',
                             fontWeight: 500,
                             color: '#1a1a1a',
-                            mb: 0.5,
                             fontFamily: 'Poppins',
                           }}
                         >
                           {post.headline}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: '13px',
-                            color: '#666',
-                            fontFamily: 'Poppins',
-                          }}
-                        >
-                          {post.description}
                         </Typography>
                       </Box>
                     </StyledTableCell>

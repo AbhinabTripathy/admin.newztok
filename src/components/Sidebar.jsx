@@ -65,9 +65,8 @@ const menuItems = [
   { text: 'MANAGEMENT', section: true },
   { text: 'Manage Users', icon: <GroupIcon />, path: '/manage-users' },
   { text: 'Manage Ads', icon: <MonetizationOnIcon />, path: '/manage-ads' },
-  { text: 'ANALYTICS & SETTINGS', section: true },
+  { text: 'ANALYTICS', section: true },
   { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
-  { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 
 const Sidebar = () => {

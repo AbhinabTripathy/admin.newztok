@@ -450,25 +450,14 @@ const Dashboard = () => {
                   fontFamily: 'Poppins',
                 }}
               >
-                SUBMITTED
-              </TableCell>
-              <TableCell
-                sx={{
-                  color: '#666',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-                  fontFamily: 'Poppins',
-                }}
-              >
-                ACTION
+                TYPE
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {postsLoading ? (
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                <TableCell colSpan={3} align="center" sx={{ py: 3 }}>
                   <CircularProgress size={24} sx={{ color: '#6B73FF' }} />
                 </TableCell>
               </TableRow>
@@ -512,35 +501,17 @@ const Dashboard = () => {
                       color: '#666',
                       borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
                       fontFamily: 'Poppins',
+                      textTransform: 'capitalize',
                     }}
                   >
-                    {formatDate(post.created_at || post.submitted || post.date)}
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-                    }}
-                  >
-                    <IconButton
-                      size="small"
-                      sx={{
-                        color: '#6B73FF',
-                        transition: 'all 0.3s ease',
-                        padding: '6px',
-                        '&:hover': {
-                          backgroundColor: 'rgba(107, 115, 255, 0.08)',
-                          transform: 'scale(1.1)',
-                        },
-                      }}
-                    >
-                      <EditIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
+                    {post.type || post.postType || 
+                     (post.video_url || post.videoUrl ? 'Video' : 'Standard')}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 3, color: '#666' }}>
+                <TableCell colSpan={3} align="center" sx={{ py: 3, color: '#666' }}>
                   No pending posts found
                 </TableCell>
               </TableRow>
