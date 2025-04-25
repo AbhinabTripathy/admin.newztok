@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -66,6 +66,7 @@ const StandardPost = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const editorRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -522,24 +523,71 @@ const StandardPost = () => {
               Content
             </Typography>
             <Editor
-              apiKey="vbil1yv26sci3hwbqs4ctc1ahy85mj03vnl4etxiinf9sk0h"
+              apiKey="omxjaluaxpgfpa6xkfadimoprrirfmhozsrtpb3o1uimu4c5"
+              onInit={(evt, editor) => {
+                editorRef.current = editor;
+              }}
               value={formData.content}
               onEditorChange={handleEditorChange}
               init={{
                 height: 300,
-                menubar: false,
+                menubar: true,
                 plugins: [
-                  'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                  'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                  'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                  'anchor', 'autolink', 'charmap', 'codesample', 'emoticons', 'image', 'link', 'lists', 
+                  'media', 'searchreplace', 'table', 'visualblocks', 'wordcount', 'fullscreen', 'code',
+                  'help', 'preview'
                 ],
-                toolbar: 'undo redo | blocks | ' +
-                  'bold italic underline | alignleft aligncenter ' +
-                  'alignright alignjustify | bullist numlist outdent indent | ' +
-                  'removeformat | link image | code | fullscreen',
+                toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat | fullscreen code',
                 content_style: 'body { font-family: Poppins, sans-serif; font-size: 14px; }',
-                skin: 'oxide',
-                content_css: 'default',
+                images_upload_handler: (blobInfo, progress) => new Promise((resolve, reject) => {
+                  const token = localStorage.getItem('token');
+                  if (!token) {
+                    reject('No token found. Please login again.');
+                    return;
+                  }
+                  
+                  const formData = new FormData();
+                  formData.append('file', blobInfo.blob(), blobInfo.filename());
+                  
+                  axios.post('https://api.newztok.in/api/upload', formData, {
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                    },
+                    onUploadProgress: (e) => {
+                      progress(e.loaded / e.total * 100);
+                    }
+                  })
+                  .then(response => {
+                    resolve(response.data.url);
+                  })
+                  .catch(error => {
+                    reject('Image upload failed: ' + error.message);
+                  });
+                }),
+                file_picker_types: 'image',
+                file_picker_callback: function(cb, value, meta) {
+                  const input = document.createElement('input');
+                  input.setAttribute('type', 'file');
+                  input.setAttribute('accept', 'image/*');
+                  
+                  input.onchange = function() {
+                    const file = this.files[0];
+                    const reader = new FileReader();
+                    
+                    reader.onload = function() {
+                      const id = 'blobid' + (new Date()).getTime();
+                      const blobCache = editorRef.current.editorUpload.blobCache;
+                      const base64 = reader.result.split(',')[1];
+                      const blobInfo = blobCache.create(id, file, base64);
+                      blobCache.add(blobInfo);
+                      
+                      cb(blobInfo.blobUri(), { title: file.name });
+                    };
+                    reader.readAsDataURL(file);
+                  };
+                  
+                  input.click();
+                }
               }}
             />
           </Box>

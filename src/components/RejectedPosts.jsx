@@ -65,6 +65,12 @@ const RejectedPosts = () => {
     currentPage: 1
   });
 
+  // Helper function to capitalize first letter
+  const capitalizeFirstLetter = (string) => {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+  };
+
   useEffect(() => {
     const fetchRejectedNews = async () => {
       try {
@@ -88,7 +94,51 @@ const RejectedPosts = () => {
         // Check if the response has the expected structure
         if (response.data.success && response.data.data && response.data.data.news) {
           const newsData = response.data.data.news;
-          setRejectedPosts(newsData);
+          
+          // Process and format the data
+          const processedData = newsData.map(post => {
+            // Extract state and district from various possible locations in the data
+            let state = '';
+            let district = '';
+            
+            // Try to extract from direct state/district properties
+            if (post.state) {
+              state = post.state;
+            }
+            if (post.district) {
+              district = post.district;
+            }
+            
+            // If not found, try location object
+            if ((!state || !district) && post.location && typeof post.location === 'object') {
+              if (!state && post.location.state) {
+                state = post.location.state;
+              }
+              if (!district && (post.location.district || post.location.city)) {
+                district = post.location.district || post.location.city;
+              }
+            }
+            
+            // Format the author to ensure it's a string
+            let formattedAuthor = 'Unknown';
+            if (typeof post.author === 'string') {
+              formattedAuthor = post.author;
+            } else if (post.author && post.author.name) {
+              formattedAuthor = post.author.name;
+            } else if (post.author && post.author.username) {
+              formattedAuthor = post.author.username;
+            }
+            
+            // Return processed post data
+            return {
+              ...post,
+              formattedState: capitalizeFirstLetter(state),
+              formattedDistrict: capitalizeFirstLetter(district),
+              formattedAuthor: formattedAuthor
+            };
+          });
+          
+          setRejectedPosts(processedData);
           setPagination({
             total: response.data.data.total || 0,
             totalPages: response.data.data.totalPages || 0,
@@ -96,23 +146,23 @@ const RejectedPosts = () => {
           });
           
           // Log the location structure from the first post if available
-          if (newsData.length > 0) {
+          if (processedData.length > 0) {
             console.log('Sample post data structure:', {
-              headline: newsData[0].headline,
-              location: newsData[0].location,
-              city: newsData[0].city,
-              state: newsData[0].state,
-              author: newsData[0].author
+              headline: processedData[0].headline,
+              location: processedData[0].location,
+              city: processedData[0].city,
+              state: processedData[0].state,
+              author: processedData[0].author
             });
             
             // Log more detailed information about location data across all posts
             console.log('Location data analysis:', {
-              totalPosts: newsData.length,
-              postsWithLocationObject: newsData.filter(post => post.location && typeof post.location === 'object').length,
-              postsWithLocationString: newsData.filter(post => post.location && typeof post.location === 'string').length,
-              postsWithNoLocation: newsData.filter(post => !post.location).length,
-              postsWithCityStateProps: newsData.filter(post => post.city || post.state).length,
-              firstFewPostsLocationData: newsData.slice(0, 3).map(post => ({
+              totalPosts: processedData.length,
+              postsWithLocationObject: processedData.filter(post => post.location && typeof post.location === 'object').length,
+              postsWithLocationString: processedData.filter(post => post.location && typeof post.location === 'string').length,
+              postsWithNoLocation: processedData.filter(post => !post.location).length,
+              postsWithCityStateProps: processedData.filter(post => post.city || post.state).length,
+              firstFewPostsLocationData: processedData.slice(0, 3).map(post => ({
                 postId: post._id,
                 location: post.location,
                 city: post.city,
@@ -121,7 +171,7 @@ const RejectedPosts = () => {
             });
           }
           
-          console.log('Processed news data:', newsData);
+          console.log('Processed news data:', processedData);
         } else {
           console.error('Unexpected API response structure:', response.data);
           setError('Unexpected API response structure');
@@ -286,7 +336,7 @@ const RejectedPosts = () => {
                             fontFamily: 'Poppins',
                           }}
                         >
-                          {post.type ? post.type.charAt(0).toUpperCase() + post.type.slice(1) : 'N/A'}
+                          {post.type ? capitalizeFirstLetter(post.type) : 'Standard'}
                         </Typography>
                         <Typography
                           sx={{
@@ -295,7 +345,7 @@ const RejectedPosts = () => {
                             fontFamily: 'Poppins',
                           }}
                         >
-                          {post.category ? post.category.charAt(0).toUpperCase() + post.category.slice(1) : 'N/A'}
+                          {post.category ? capitalizeFirstLetter(post.category) : 'General'}
                         </Typography>
                       </Box>
                     </StyledTableCell>
@@ -310,7 +360,7 @@ const RejectedPosts = () => {
                             fontWeight: 500,
                           }}
                         >
-                          {post.author?.name || post.author || 'Unknown'}
+                          {post.formattedAuthor || 'Unknown'}
                         </Typography>
                         <Typography
                           sx={{
@@ -335,16 +385,9 @@ const RejectedPosts = () => {
                             fontFamily: 'Poppins',
                           }}
                         >
-                          {post.location ? 
-                            (typeof post.location === 'object' && (post.location.city || post.location.state) ? 
-                              `${post.location.city || ''} ${post.location.state ? `, ${post.location.state}` : ''}`.trim() : 
-                              typeof post.location === 'string' ? post.location : 'Location not available'
-                            ) : 
-                            (post.city || post.state ? 
-                              `${post.city || ''} ${post.state ? `, ${post.state}` : ''}`.trim() : 
-                              'Location not available'
-                            )
-                          }
+                          {post.formattedState && post.formattedDistrict ? 
+                            `${post.formattedState} | ${post.formattedDistrict}` : 
+                            post.formattedState || post.formattedDistrict || ''}
                         </Typography>
                       </Box>
                     </StyledTableCell>

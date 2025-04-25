@@ -98,10 +98,11 @@ const Posts = () => {
           }
           
           return {
+            id: post.id,
             headline: post.title || 'No Title',
             description: post.description || 'No Description',
             type: post.postType || 'Standard',
-            category: post.categoryType || 'Uncategorized',
+            category: capitalizeFirstLetter(post.categoryType || post.category || 'General'),
             author: post.journalist?.username || post.editor?.username || post.admin?.username || 'Unknown',
             location: locationText,
             state: state,
@@ -113,8 +114,14 @@ const Posts = () => {
               hour: '2-digit',
               minute: '2-digit'
             }),
+            createdAt: post.createdAt || post.created_at || new Date().toISOString(),
             featured: post.featured || false
           };
+        });
+        
+        // Sort posts by created date, newest first
+        formattedPosts.sort((a, b) => {
+          return new Date(b.createdAt) - new Date(a.createdAt);
         });
         
         setPosts(formattedPosts);
@@ -242,6 +249,7 @@ const Posts = () => {
                           fontSize: '13px',
                           color: '#666',
                           fontFamily: 'Poppins',
+                          textTransform: 'capitalize'
                         }}
                       >
                         {post.category}
