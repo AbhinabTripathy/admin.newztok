@@ -42,22 +42,22 @@ const ImageUploadSection = ({ title, dimensions, image, onImageChange, onImageDe
         </Typography>
         
         {image && (
-          <Tooltip title="Remove">
-            <IconButton 
-              onClick={onImageDelete}
-              sx={{ 
-                color: '#FF3B30',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 59, 48, 0.08)',
-                },
-              }}
-            >
-              <DeleteIcon fontSize="small" />
-              <Typography sx={{ ml: 0.5, fontSize: '12px', fontFamily: 'Poppins' }}>
-                Remove
-              </Typography>
-            </IconButton>
-          </Tooltip>
+        <Tooltip title="Remove">
+          <IconButton 
+            onClick={onImageDelete}
+            sx={{ 
+              color: '#FF3B30',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 59, 48, 0.08)',
+              },
+            }}
+          >
+            <DeleteIcon fontSize="small" />
+            <Typography sx={{ ml: 0.5, fontSize: '12px', fontFamily: 'Poppins' }}>
+              Remove
+            </Typography>
+          </IconButton>
+        </Tooltip>
         )}
       </Box>
       
@@ -204,6 +204,8 @@ const ManageAds = () => {
       if (response.data && Array.isArray(response.data.data)) {
         const ads = response.data.data;
         
+        console.log('Fetched ads:', ads);
+        
         // Process mobile ads
         const cardAd = ads.find(ad => ad.platform === 'mobile' && ad.type === 'card');
         const popoverAd = ads.find(ad => ad.platform === 'mobile' && ad.type === 'popover');
@@ -212,24 +214,41 @@ const ManageAds = () => {
         const bannerAd = ads.find(ad => ad.platform === 'web' && ad.type === 'banner');
         const sideAd = ads.find(ad => ad.platform === 'web' && ad.type === 'side');
 
+        // Helper function to get proper image URL
+        const getFullImageUrl = (imageUrl) => {
+          if (!imageUrl) return null;
+          if (imageUrl.startsWith('http')) return imageUrl;
+          return `https://api.newztok.in${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+        };
+
+        console.log('Card ad found:', cardAd);
+        console.log('Popover ad found:', popoverAd);
+        console.log('Banner ad found:', bannerAd);
+        console.log('Side ad found:', sideAd);
+
         setMobileAds(prev => ({
           ...prev,
-          cardAd: cardAd ? cardAd.imageUrl : null,
-          popoverAd: popoverAd ? popoverAd.imageUrl : null,
+          cardAd: cardAd ? getFullImageUrl(cardAd.imageUrl) : null,
+          popoverAd: popoverAd ? getFullImageUrl(popoverAd.imageUrl) : null,
           cardRedirectUrl: cardAd ? cardAd.redirectUrl || '' : '',
           popoverRedirectUrl: popoverAd ? popoverAd.redirectUrl || '' : '',
         }));
 
         setWebAds(prev => ({
           ...prev,
-          bannerAd: bannerAd ? bannerAd.imageUrl : null,
-          sideAd: sideAd ? sideAd.imageUrl : null,
+          bannerAd: bannerAd ? getFullImageUrl(bannerAd.imageUrl) : null,
+          sideAd: sideAd ? getFullImageUrl(sideAd.imageUrl) : null,
           bannerRedirectUrl: bannerAd ? bannerAd.redirectUrl || '' : '',
           sideRedirectUrl: sideAd ? sideAd.redirectUrl || '' : '',
         }));
       }
     } catch (error) {
       console.error('Error fetching existing ads:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load existing ads',
+        severity: 'error'
+      });
     }
   };
 
@@ -240,7 +259,7 @@ const ManageAds = () => {
   const handleWebImageChange = (type, image) => {
     setWebAds(prev => ({ ...prev, [type]: image }));
   };
-
+  
   const handleMobileRedirectChange = (type, url) => {
     setMobileAds(prev => ({ ...prev, [type]: url }));
   };
@@ -293,10 +312,10 @@ const ManageAds = () => {
       if (mobileAds.cardAd) {
         try {
           const cardFormData = new FormData();
-          const cardFile = await dataURLtoFile(mobileAds.cardAd, 'card_ad.jpg');
-          cardFormData.append('image', cardFile);
-          cardFormData.append('platform', 'mobile');
-          cardFormData.append('type', 'card');
+        const cardFile = await dataURLtoFile(mobileAds.cardAd, 'card_ad.jpg');
+        cardFormData.append('image', cardFile);
+        cardFormData.append('platform', 'mobile');
+        cardFormData.append('type', 'card');
           cardFormData.append('redirectUrl', mobileAds.cardRedirectUrl);
           
           console.log('Attempting to upload card ad with field name "image"');
@@ -349,14 +368,14 @@ const ManageAds = () => {
               // 'Content-Type': 'multipart/form-data'
             }
           });
-          
+      
           console.log('Popover ad posted successfully:', response.data);
-          
-          setSnackbar({
-            open: true,
+      
+      setSnackbar({
+        open: true,
             message: 'Popover ad posted successfully',
-            severity: 'success'
-          });
+        severity: 'success'
+      });
         } catch (error) {
           console.error('Error posting popover ad:', error);
           if (error.response) {
@@ -405,7 +424,7 @@ const ManageAds = () => {
           const formData = new FormData();
           
           // Convert base64 to File
-          const bannerFile = await dataURLtoFile(webAds.bannerAd, 'banner_ad.jpg');
+        const bannerFile = await dataURLtoFile(webAds.bannerAd, 'banner_ad.jpg');
           
           // Try the field name "image" (singular)
           formData.append('image', bannerFile);
@@ -468,14 +487,14 @@ const ManageAds = () => {
               // 'Content-Type': 'multipart/form-data'
             }
           });
-          
+      
           console.log('Side ad posted successfully:', response.data);
-          
-          setSnackbar({
-            open: true,
+      
+      setSnackbar({
+        open: true,
             message: 'Side ad posted successfully',
-            severity: 'success'
-          });
+        severity: 'success'
+      });
         } catch (error) {
           console.error('Error posting side ad:', error);
           if (error.response) {

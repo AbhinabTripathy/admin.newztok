@@ -196,146 +196,160 @@ const PendingPosts = () => {
     return 'User ' + (post.user_id || post.userId || post.authorId || '');
   };
 
-  const fetchPendingPosts = async () => {
-    try {
-      setLoading(true);
-      // Get the authentication token stored during login
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        console.error('No authentication token found for fetching pending posts');
-        setError('Authentication required. Please login again.');
-        setLoading(false);
-        return;
-      }
-
-      console.log('Fetching pending posts with auth token...');
-      // Make authenticated API request with the token
-      const response = await axios.get('https://api.newztok.in/api/dashboard/pending-posts', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
+    const fetchPendingPosts = async () => {
+      try {
+        setLoading(true);
+        // Get the authentication token stored during login
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.error('No authentication token found for fetching pending posts');
+          setError('Authentication required. Please login again.');
+          setLoading(false);
+          return;
         }
-      });
 
-      console.log('Pending posts response received:', response.data);
-      
-      // Log the full structure to help with debugging
-      console.log('Full data structure:', JSON.stringify(response.data, null, 2));
-      
-      // Extract pending posts from the response
-      if (response.data && response.data.data && response.data.data.posts && Array.isArray(response.data.data.posts)) {
-        // Posts are in response.data.data.posts
-        const formattedPosts = response.data.data.posts.map(post => ({
-          id: post.id || '',
-          headline: post.title || post.headline || 'Untitled Post',
-          description: post.content ? post.content.substring(0, 80) + '...' : post.description || 'No description available',
-          category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
-          location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
-          state: capitalizeFirstLetter(post.state) || '',
-          district: capitalizeFirstLetter(post.district) || '',
-          submittedAt: formatTime(post.created_at || post.createdAt),
-          date: formatDate(post.created_at || post.createdAt),
-          author: getAuthorName(post),
-          originalData: post
-        }));
+        console.log('Fetching pending posts with auth token...');
+        // Make authenticated API request with the token
+        const response = await axios.get('https://api.newztok.in/api/dashboard/pending-posts', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        console.log('Pending posts response received:', response.data);
         
-        setPendingPosts(formattedPosts);
-        console.log('Formatted pending posts:', formattedPosts);
-      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        // Posts are directly in response.data.data
-        const formattedPosts = response.data.data.map(post => ({
-          id: post.id || '',
-          headline: post.title || post.headline || 'Untitled Post',
-          description: post.content ? post.content.substring(0, 80) + '...' : post.description || 'No description available',
-          category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
-          location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
-          state: capitalizeFirstLetter(post.state) || '',
-          district: capitalizeFirstLetter(post.district) || '',
-          submittedAt: formatTime(post.created_at || post.createdAt),
-          date: formatDate(post.created_at || post.createdAt),
-          author: getAuthorName(post),
-          originalData: post
-        }));
+        // Log the full structure to help with debugging
+        console.log('Full data structure:', JSON.stringify(response.data, null, 2));
         
-        setPendingPosts(formattedPosts);
-        console.log('Formatted pending posts from data array:', formattedPosts);
-      } else if (response.data && response.data.data && typeof response.data.data === 'object') {
-        // Temporary fix to log what's actually in the data
-        console.log('Data content:', response.data.data);
+        // Helper function to strip HTML tags
+        const stripHtmlTags = (html) => {
+          if (!html) return '';
+          return html.replace(/<\/?[^>]+(>|$)/g, '').substring(0, 80) + '...';
+        };
         
-        // Check if data is empty but valid
-        if (Object.keys(response.data.data).length === 0) {
-          console.log('Data object is empty, showing empty posts list');
-          setPendingPosts([]);
-        } else {
-          // Try to find posts in any property of data
-          let postsFound = false;
-          for (const key in response.data.data) {
-            const value = response.data.data[key];
-            if (Array.isArray(value)) {
-              console.log(`Found array in data.${key}, using this as posts`);
-              const formattedPosts = value.map(post => ({
-                id: post.id || '',
-                headline: post.title || post.headline || 'Untitled Post',
-                description: post.content ? post.content.substring(0, 80) + '...' : post.description || 'No description available',
-                category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
-                location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
-                state: capitalizeFirstLetter(post.state) || '',
-                district: capitalizeFirstLetter(post.district) || '',
-                submittedAt: formatTime(post.created_at || post.createdAt),
-                date: formatDate(post.created_at || post.createdAt),
-                author: getAuthorName(post),
-                originalData: post
-              }));
-              
-              setPendingPosts(formattedPosts);
-              postsFound = true;
-              break;
+        // Extract pending posts from the response
+        if (response.data && response.data.data && response.data.data.posts && Array.isArray(response.data.data.posts)) {
+          // Posts are in response.data.data.posts
+          const formattedPosts = response.data.data.posts.map(post => ({
+            id: post.id || '',
+            headline: post.title || post.headline || 'Untitled Post',
+            description: stripHtmlTags(post.content) || post.description || 'No description available',
+            category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
+            location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
+            state: capitalizeFirstLetter(post.state) || '',
+            district: capitalizeFirstLetter(post.district) || '',
+            submittedAt: formatTime(post.created_at || post.createdAt),
+            date: formatDate(post.created_at || post.createdAt),
+            author: getAuthorName(post),
+            featuredImage: post.featuredImage || post.image || '',
+            contentType: post.contentType || 'standard',
+            originalData: post
+          }));
+          
+          setPendingPosts(formattedPosts);
+          console.log('Formatted pending posts:', formattedPosts);
+        } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+          // Posts are directly in response.data.data
+          const formattedPosts = response.data.data.map(post => ({
+            id: post.id || '',
+            headline: post.title || post.headline || 'Untitled Post',
+            description: stripHtmlTags(post.content) || post.description || 'No description available',
+            category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
+            location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
+            state: capitalizeFirstLetter(post.state) || '',
+            district: capitalizeFirstLetter(post.district) || '',
+            submittedAt: formatTime(post.created_at || post.createdAt),
+            date: formatDate(post.created_at || post.createdAt),
+            author: getAuthorName(post),
+            featuredImage: post.featuredImage || post.image || '',
+            contentType: post.contentType || 'standard',
+            originalData: post
+          }));
+          
+          setPendingPosts(formattedPosts);
+          console.log('Formatted pending posts from data array:', formattedPosts);
+        } else if (response.data && response.data.data && typeof response.data.data === 'object') {
+          // Temporary fix to log what's actually in the data
+          console.log('Data content:', response.data.data);
+          
+          // Check if data is empty but valid
+          if (Object.keys(response.data.data).length === 0) {
+            console.log('Data object is empty, showing empty posts list');
+            setPendingPosts([]);
+          } else {
+            // Try to find posts in any property of data
+            let postsFound = false;
+            for (const key in response.data.data) {
+              const value = response.data.data[key];
+              if (Array.isArray(value)) {
+                console.log(`Found array in data.${key}, using this as posts`);
+                const formattedPosts = value.map(post => ({
+                  id: post.id || '',
+                  headline: post.title || post.headline || 'Untitled Post',
+                  description: stripHtmlTags(post.content) || post.description || 'No description available',
+                  category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
+                  location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
+                  state: capitalizeFirstLetter(post.state) || '',
+                  district: capitalizeFirstLetter(post.district) || '',
+                  submittedAt: formatTime(post.created_at || post.createdAt),
+                  date: formatDate(post.created_at || post.createdAt),
+                  author: getAuthorName(post),
+                  featuredImage: post.featuredImage || post.image || '',
+                  contentType: post.contentType || 'standard',
+                  originalData: post
+                }));
+                
+                setPendingPosts(formattedPosts);
+                postsFound = true;
+                break;
+              }
+            }
+            
+            if (!postsFound) {
+              console.warn('Could not find posts array in the response data');
+              setError('Unable to locate posts in the API response.');
             }
           }
+        } else if (response.data && Array.isArray(response.data)) {
+          // Direct array in response
+          const formattedPosts = response.data.map(post => ({
+            id: post.id || '',
+            headline: post.title || post.headline || 'Untitled Post',
+            description: stripHtmlTags(post.content) || post.description || 'No description available',
+            category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
+            location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
+            state: capitalizeFirstLetter(post.state) || '',
+            district: capitalizeFirstLetter(post.district) || '',
+            submittedAt: formatTime(post.created_at || post.createdAt),
+            date: formatDate(post.created_at || post.createdAt),
+            author: getAuthorName(post),
+            featuredImage: post.featuredImage || post.image || '',
+            contentType: post.contentType || 'standard',
+            originalData: post
+          }));
           
-          if (!postsFound) {
-            console.warn('Could not find posts array in the response data');
-            setError('Unable to locate posts in the API response.');
+          setPendingPosts(formattedPosts);
+        } else {
+          console.warn('Could not find pending posts in the expected API response structure');
+          console.log('Response structure:', typeof response.data, response.data ? Object.keys(response.data) : 'null');
+          
+          // If we have a successful response but no posts, assume empty list
+          if (response.data && response.data.success === true) {
+            console.log('API returned success but no posts, showing empty list');
+            setPendingPosts([]);
+          } else {
+            setError('Unable to load pending posts. Unexpected data format received.');
           }
         }
-      } else if (response.data && Array.isArray(response.data)) {
-        // Direct array in response
-        const formattedPosts = response.data.map(post => ({
-          id: post.id || '',
-          headline: post.title || post.headline || 'Untitled Post',
-          description: post.content ? post.content.substring(0, 80) + '...' : post.description || 'No description available',
-          category: capitalizeFirstLetter(post.category || post.categoryType || 'General'),
-          location: `${capitalizeFirstLetter(post.state) || ''} ${post.district ? ', ' + capitalizeFirstLetter(post.district) : ''}`,
-          state: capitalizeFirstLetter(post.state) || '',
-          district: capitalizeFirstLetter(post.district) || '',
-          submittedAt: formatTime(post.created_at || post.createdAt),
-          date: formatDate(post.created_at || post.createdAt),
-          author: getAuthorName(post),
-          originalData: post
-        }));
-        
-        setPendingPosts(formattedPosts);
-      } else {
-        console.warn('Could not find pending posts in the expected API response structure');
-        console.log('Response structure:', typeof response.data, response.data ? Object.keys(response.data) : 'null');
-        
-        // If we have a successful response but no posts, assume empty list
-        if (response.data && response.data.success === true) {
-          console.log('API returned success but no posts, showing empty list');
-          setPendingPosts([]);
-        } else {
-          setError('Unable to load pending posts. Unexpected data format received.');
-        }
+      } catch (err) {
+        console.error('Error fetching pending posts:', err);
+        setError('Failed to load pending posts. Please try again later.');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching pending posts:', err);
-      setError('Failed to load pending posts. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   useEffect(() => {
     fetchPendingPosts();
@@ -680,6 +694,20 @@ const PendingPosts = () => {
           },
         }}
       >
+        <StyledMenuItem onClick={() => handleAction('edit')}>
+          <ListItemIcon>
+            <EditOutlinedIcon sx={{ fontSize: 20, color: '#FF9800' }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Edit" 
+            primaryTypographyProps={{ 
+              style: { 
+                fontFamily: 'Poppins',
+                fontSize: '14px',
+              }
+            }}
+          />
+        </StyledMenuItem>
         <StyledMenuItem 
           onClick={() => handleAction('approve')}
           disabled={actionLoading}
@@ -688,7 +716,7 @@ const PendingPosts = () => {
             {actionLoading ? (
               <CircularProgress size={20} sx={{ color: '#4CAF50' }} />
             ) : (
-              <CheckCircleOutlineIcon sx={{ fontSize: 20, color: '#4CAF50' }} />
+            <CheckCircleOutlineIcon sx={{ fontSize: 20, color: '#4CAF50' }} />
             )}
           </ListItemIcon>
           <ListItemText 
@@ -710,7 +738,7 @@ const PendingPosts = () => {
             {actionLoading ? (
               <CircularProgress size={20} sx={{ color: '#FF3B30' }} />
             ) : (
-              <BlockOutlinedIcon sx={{ fontSize: 20, color: '#FF3B30' }} />
+            <BlockOutlinedIcon sx={{ fontSize: 20, color: '#FF3B30' }} />
             )}
           </ListItemIcon>
           <ListItemText 

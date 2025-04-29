@@ -14,6 +14,7 @@ import ManageUsers from './components/ManageUsers';
 import EditUser from './components/EditUser';
 import CreateNewUser from './components/CreateNewUser';
 import ManageAds from './components/ManageAds';
+import AdminEditPost from './components/AdminEditPost';
 import Login from './components/Login';
 import axios from 'axios';
 
@@ -98,6 +99,7 @@ const ProtectedLayout = () => {
               <Route path="/manage-users/edit/:id" element={<EditUser />} />
               <Route path="/create-user" element={<CreateNewUser />} />
               <Route path="/manage-ads" element={<ManageAds />} />
+              <Route path="/edit-post/:postId" element={<AdminEditPost />} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
