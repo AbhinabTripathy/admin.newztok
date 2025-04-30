@@ -65,6 +65,7 @@ const Posts = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
@@ -204,7 +205,7 @@ const Posts = () => {
         return;
       }
       
-      // Optimistically update UI
+      // Update UI optimistically
       setPosts(prevPosts => 
         prevPosts.map(post => {
           if (String(post.id) === String(postId)) {
@@ -218,39 +219,39 @@ const Posts = () => {
         })
       );
       
-      // API endpoint for trending
-      const endpoint = `https://api.newztok.in/api/news/featured/${postId}`;
-      console.log('Making PUT request to:', endpoint);
-
-      // Use native fetch to make the request
-      const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ isFeatured: newFeaturedStatus })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Server returned status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Response data:', data);
-
-      // Store featured status in localStorage for persistence
+      // Store featured status in localStorage for persistence before API call
       if (newFeaturedStatus) {
         localStorage.setItem(`featured_post_${postId}`, 'true');
       } else {
         localStorage.removeItem(`featured_post_${postId}`);
       }
       
+      // API endpoint for trending
+      const endpoint = `https://api.newztok.in/api/news/featured/${postId}`;
+      console.log('Making PUT request to:', endpoint);
+
+      // Make the PUT request using axios with explicit configuration
+      const response = await axios({
+        method: 'PUT',
+        url: endpoint,
+        data: { isFeatured: newFeaturedStatus },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Response data:', response.data);
+
       // Show confirmation
-      alert(newFeaturedStatus ? 
+      setSuccessMessage(newFeaturedStatus ? 
         'Post marked as trending successfully!' : 
         'Post removed from trending successfully!'
       );
+      
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
       
       // Refresh posts to ensure everything is in sync
       fetchPosts();
@@ -258,11 +259,34 @@ const Posts = () => {
     } catch (err) {
       console.error('Error toggling trending status:', err);
       
-      // Revert the optimistic UI update
-      fetchPosts();
+      // Revert the optimistic UI update in case of error
+      const post = posts.find(p => String(p.id) === String(postId));
+      const currentFeaturedStatus = post?.featured || false;
+      
+      // Revert localStorage change
+      if (currentFeaturedStatus) {
+        localStorage.setItem(`featured_post_${postId}`, 'true');
+      } else {
+        localStorage.removeItem(`featured_post_${postId}`);
+      }
+      
+      // Revert UI change
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (String(post.id) === String(postId)) {
+            return {
+              ...post,
+              featured: currentFeaturedStatus,
+              isFeatured: currentFeaturedStatus
+            };
+          }
+          return post;
+        })
+      );
       
       // Show error message
-      alert(`Failed to update trending status. ${err.message}`);
+      setError(`Failed to update trending status. ${err.message}`);
+      setTimeout(() => setError(null), 3000);
     }
     
     handleMenuClose();
@@ -319,14 +343,16 @@ const Posts = () => {
         }
         
         // Show confirmation and refresh posts
-        alert('Post deleted successfully!');
+        setSuccessMessage('Post deleted successfully!');
+        setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         throw new Error(`Server returned unexpected status: ${response.status}`);
       }
     } catch (err) {
       console.error('Error deleting post:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Failed to delete post';
-      alert(`Failed to delete post: ${errorMessage}. Please try again.`);
+      setError(`Failed to delete post: ${errorMessage}. Please try again.`);
+      setTimeout(() => setError(null), 3000);
     }
     
     handleMenuClose();
@@ -374,6 +400,19 @@ const Posts = () => {
             locationText = state || district || '';
           }
           
+          // Check localStorage for featured status which may have been set by user
+          const postId = post.id || post._id;
+          let isFeaturedValue = post.featured || post.isFeatured || false;
+          
+          try {
+            const localStorageFeatured = localStorage.getItem(`featured_post_${postId}`);
+            if (localStorageFeatured === 'true') {
+              isFeaturedValue = true;
+            }
+          } catch (error) {
+            console.warn(`Could not check localStorage for post ${postId}:`, error);
+          }
+          
           return {
             id: post.id,
             headline: post.title || 'No Title',
@@ -392,7 +431,8 @@ const Posts = () => {
               minute: '2-digit'
             }),
             createdAt: post.createdAt || post.created_at || new Date().toISOString(),
-            featured: post.featured || false,
+            featured: isFeaturedValue,
+            isFeatured: isFeaturedValue,
             // Add the requested fields
             featuredImage: post.featuredImage || null,
             youtubeUrl: post.youtubeUrl || null,
@@ -469,6 +509,13 @@ const Posts = () => {
       >
         Review all approved and featured posts submitted by your team.
       </Typography>
+
+      {/* Success message */}
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {successMessage}
+        </Alert>
+      )}
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
