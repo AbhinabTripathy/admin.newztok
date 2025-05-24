@@ -11,12 +11,18 @@ import {
   Alert,
   CircularProgress,
   TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 
 const ImageUploadSection = ({ title, dimensions, image, onImageChange, onImageDelete }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -26,6 +32,19 @@ const ImageUploadSection = ({ title, dimensions, image, onImageChange, onImageDe
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    onImageDelete();
+    setShowDeleteConfirm(false);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
   };
 
   return (
@@ -44,7 +63,7 @@ const ImageUploadSection = ({ title, dimensions, image, onImageChange, onImageDe
         {image && (
         <Tooltip title="Remove">
           <IconButton 
-            onClick={onImageDelete}
+            onClick={handleDeleteClick}
             sx={{ 
               color: '#FF3B30',
               '&:hover': {
@@ -86,7 +105,7 @@ const ImageUploadSection = ({ title, dimensions, image, onImageChange, onImageDe
               }}
             />
             <IconButton
-              onClick={() => onImageDelete()}
+              onClick={handleDeleteClick}
               sx={{
                 position: 'absolute',
                 top: 8,
@@ -130,6 +149,47 @@ const ImageUploadSection = ({ title, dimensions, image, onImageChange, onImageDe
           </Box>
         )}
       </Paper>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteConfirm}
+        onClose={handleCancelDelete}
+        aria-labelledby="delete-dialog-title"
+      >
+        <DialogTitle id="delete-dialog-title" sx={{ fontFamily: 'Poppins' }}>
+          Confirm Deletion
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontFamily: 'Poppins' }}>
+            Are you sure you want to delete this ad? This action cannot be undone and the ad will be permanently removed from the database.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleCancelDelete}
+            sx={{ 
+              fontFamily: 'Poppins',
+              color: '#666'
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            sx={{ 
+              fontFamily: 'Poppins',
+              backgroundColor: '#FF3B30',
+              '&:hover': {
+                backgroundColor: '#D32F2F',
+              }
+            }}
+          >
+            Delete Permanently
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
@@ -165,6 +225,8 @@ const ManageAds = () => {
     popoverAd: null,
     cardRedirectUrl: '',
     popoverRedirectUrl: '',
+    cardAdId: null,
+    popoverAdId: null,
   });
 
   const [webAds, setWebAds] = useState({
@@ -172,6 +234,8 @@ const ManageAds = () => {
     sideAd: null,
     bannerRedirectUrl: '',
     sideRedirectUrl: '',
+    bannerAdId: null,
+    sideAdId: null,
   });
   
   const [snackbar, setSnackbar] = useState({
@@ -221,25 +285,26 @@ const ManageAds = () => {
           return `https://api.newztok.in${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
         };
 
-        console.log('Card ad found:', cardAd);
-        console.log('Popover ad found:', popoverAd);
-        console.log('Banner ad found:', bannerAd);
-        console.log('Side ad found:', sideAd);
-
+        // Update mobile ads state
         setMobileAds(prev => ({
           ...prev,
           cardAd: cardAd ? getFullImageUrl(cardAd.imageUrl) : null,
           popoverAd: popoverAd ? getFullImageUrl(popoverAd.imageUrl) : null,
           cardRedirectUrl: cardAd ? cardAd.redirectUrl || '' : '',
           popoverRedirectUrl: popoverAd ? popoverAd.redirectUrl || '' : '',
+          cardAdId: cardAd ? cardAd.id : null,
+          popoverAdId: popoverAd ? popoverAd.id : null,
         }));
 
+        // Update web ads state
         setWebAds(prev => ({
           ...prev,
           bannerAd: bannerAd ? getFullImageUrl(bannerAd.imageUrl) : null,
           sideAd: sideAd ? getFullImageUrl(sideAd.imageUrl) : null,
           bannerRedirectUrl: bannerAd ? bannerAd.redirectUrl || '' : '',
           sideRedirectUrl: sideAd ? sideAd.redirectUrl || '' : '',
+          bannerAdId: bannerAd ? bannerAd.id : null,
+          sideAdId: sideAd ? sideAd.id : null,
         }));
       }
     } catch (error) {
@@ -268,22 +333,148 @@ const ManageAds = () => {
     setWebAds(prev => ({ ...prev, [type]: url }));
   };
   
-  const handleMobileImageDelete = (type) => {
-    setMobileAds(prev => ({ ...prev, [type]: null }));
-    setSnackbar({
-      open: true,
-      message: 'Mobile ad image removed',
-      severity: 'success'
-    });
+  const handleMobileImageDelete = async (type) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('Delete operation failed: No authentication token found');
+        setSnackbar({
+          open: true,
+          message: 'Authentication required. Please login again.',
+          severity: 'error'
+        });
+        return;
+      }
+
+      // Get the ad ID based on the type
+      let adId;
+      if (type === 'cardAd') {
+        adId = mobileAds.cardAdId;
+      } else if (type === 'popoverAd') {
+        adId = mobileAds.popoverAdId;
+      }
+
+      if (adId) {
+        console.log(`Attempting to delete ${type} with ID: ${adId}`);
+        const response = await axios.delete(`https://api.newztok.in/api/ads/${adId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log(`Successfully deleted ${type} permanently:`, response.data);
+        
+        // Clear all related state
+        setMobileAds(prev => ({
+          ...prev,
+          [type]: null,
+          [`${type}Id`]: null,
+          [`${type}RedirectUrl`]: ''
+        }));
+
+        // Refresh the ads list to ensure we have the latest state
+        await fetchExistingAds();
+        
+        setSnackbar({
+          open: true,
+          message: 'Ad has been permanently deleted from database',
+          severity: 'success'
+        });
+      } else {
+        console.log(`No ad ID found for ${type}, removing from state only`);
+        setMobileAds(prev => ({ ...prev, [type]: null }));
+      }
+    } catch (error) {
+      console.error(`Error deleting ${type}:`, error);
+      if (error.response) {
+        console.log('Server response:', {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers
+        });
+      } else if (error.request) {
+        console.log('No response received:', error.request);
+      } else {
+        console.log('Error details:', error.message);
+      }
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete ad from database',
+        severity: 'error'
+      });
+    }
   };
   
-  const handleWebImageDelete = (type) => {
-    setWebAds(prev => ({ ...prev, [type]: null }));
-    setSnackbar({
-      open: true,
-      message: 'Web ad image removed',
-      severity: 'success'
-    });
+  const handleWebImageDelete = async (type) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('Delete operation failed: No authentication token found');
+        setSnackbar({
+          open: true,
+          message: 'Authentication required. Please login again.',
+          severity: 'error'
+        });
+        return;
+      }
+
+      // Get the ad ID based on the type
+      let adId;
+      if (type === 'bannerAd') {
+        adId = webAds.bannerAdId;
+      } else if (type === 'sideAd') {
+        adId = webAds.sideAdId;
+      }
+
+      if (adId) {
+        console.log(`Attempting to delete ${type} with ID: ${adId}`);
+        const response = await axios.delete(`https://api.newztok.in/api/ads/${adId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log(`Successfully deleted ${type} permanently:`, response.data);
+        
+        // Clear all related state
+        setWebAds(prev => ({
+          ...prev,
+          [type]: null,
+          [`${type}Id`]: null,
+          [`${type}RedirectUrl`]: ''
+        }));
+
+        // Refresh the ads list to ensure we have the latest state
+        await fetchExistingAds();
+        
+        setSnackbar({
+          open: true,
+          message: 'Ad has been permanently deleted from database',
+          severity: 'success'
+        });
+      } else {
+        console.log(`No ad ID found for ${type}, removing from state only`);
+        setWebAds(prev => ({ ...prev, [type]: null }));
+      }
+    } catch (error) {
+      console.error(`Error deleting ${type}:`, error);
+      if (error.response) {
+        console.log('Server response:', {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers
+        });
+      } else if (error.request) {
+        console.log('No response received:', error.request);
+      } else {
+        console.log('Error details:', error.message);
+      }
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete ad from database',
+        severity: 'error'
+      });
+    }
   };
   
   const handleSnackbarClose = () => {
@@ -538,6 +729,13 @@ const ManageAds = () => {
       resolve(file);
     });
   };
+
+  // Add cleanup function to clear deleted ads from localStorage when component unmounts
+  useEffect(() => {
+    return () => {
+      localStorage.removeItem('deletedAds');
+    };
+  }, []);
 
   return (
     <Box sx={{ p: 3 }}>
