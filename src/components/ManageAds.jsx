@@ -350,21 +350,24 @@ const ManageAds = () => {
       let adId;
       if (type === 'cardAd') {
         adId = mobileAds.cardAdId;
+        console.log('Attempting to delete Card Ad from Mobile App Ads section');
       } else if (type === 'popoverAd') {
         adId = mobileAds.popoverAdId;
+        console.log('Attempting to delete Popover Ad from Mobile App Ads section');
       }
 
       if (adId) {
-        console.log(`Attempting to delete ${type} with ID: ${adId}`);
+        console.log(`Making DELETE request to: https://api.newztok.in/api/ads/${adId}`);
+        
         const response = await axios.delete(`https://api.newztok.in/api/ads/${adId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
         
-        console.log(`Successfully deleted ${type} permanently:`, response.data);
+        console.log(`Successfully deleted ${type} permanently from database:`, response.data);
         
-        // Clear all related state
+        // Clear all related state for the deleted ad
         setMobileAds(prev => ({
           ...prev,
           [type]: null,
@@ -372,12 +375,13 @@ const ManageAds = () => {
           [`${type}RedirectUrl`]: ''
         }));
 
-        // Refresh the ads list to ensure we have the latest state
+        // Refresh the ads list to ensure we have the latest state from database
         await fetchExistingAds();
         
+        const adTypeName = type === 'cardAd' ? 'Card Ad' : 'Popover Ad';
         setSnackbar({
           open: true,
-          message: 'Ad has been permanently deleted from database',
+          message: `${adTypeName} has been permanently deleted from database`,
           severity: 'success'
         });
       } else {
@@ -385,7 +389,7 @@ const ManageAds = () => {
         setMobileAds(prev => ({ ...prev, [type]: null }));
       }
     } catch (error) {
-      console.error(`Error deleting ${type}:`, error);
+      console.error(`Error deleting ${type} from Mobile App Ads:`, error);
       if (error.response) {
         console.log('Server response:', {
           status: error.response.status,
@@ -397,9 +401,11 @@ const ManageAds = () => {
       } else {
         console.log('Error details:', error.message);
       }
+      
+      const adTypeName = type === 'cardAd' ? 'Card Ad' : 'Popover Ad';
       setSnackbar({
         open: true,
-        message: 'Failed to delete ad from database',
+        message: `Failed to delete ${adTypeName} from database`,
         severity: 'error'
       });
     }
@@ -422,21 +428,24 @@ const ManageAds = () => {
       let adId;
       if (type === 'bannerAd') {
         adId = webAds.bannerAdId;
+        console.log('Attempting to delete Banner Ad from Web App Ads section');
       } else if (type === 'sideAd') {
         adId = webAds.sideAdId;
+        console.log('Attempting to delete Side Ad from Web App Ads section');
       }
 
       if (adId) {
-        console.log(`Attempting to delete ${type} with ID: ${adId}`);
+        console.log(`Making DELETE request to: https://api.newztok.in/api/ads/${adId}`);
+        
         const response = await axios.delete(`https://api.newztok.in/api/ads/${adId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
         
-        console.log(`Successfully deleted ${type} permanently:`, response.data);
+        console.log(`Successfully deleted ${type} permanently from database:`, response.data);
         
-        // Clear all related state
+        // Clear all related state for the deleted ad
         setWebAds(prev => ({
           ...prev,
           [type]: null,
@@ -444,12 +453,13 @@ const ManageAds = () => {
           [`${type}RedirectUrl`]: ''
         }));
 
-        // Refresh the ads list to ensure we have the latest state
+        // Refresh the ads list to ensure we have the latest state from database
         await fetchExistingAds();
         
+        const adTypeName = type === 'bannerAd' ? 'Banner Ad' : 'Side Ad';
         setSnackbar({
           open: true,
-          message: 'Ad has been permanently deleted from database',
+          message: `${adTypeName} has been permanently deleted from database`,
           severity: 'success'
         });
       } else {
@@ -457,7 +467,7 @@ const ManageAds = () => {
         setWebAds(prev => ({ ...prev, [type]: null }));
       }
     } catch (error) {
-      console.error(`Error deleting ${type}:`, error);
+      console.error(`Error deleting ${type} from Web App Ads:`, error);
       if (error.response) {
         console.log('Server response:', {
           status: error.response.status,
@@ -469,9 +479,11 @@ const ManageAds = () => {
       } else {
         console.log('Error details:', error.message);
       }
+      
+      const adTypeName = type === 'bannerAd' ? 'Banner Ad' : 'Side Ad';
       setSnackbar({
         open: true,
-        message: 'Failed to delete ad from database',
+        message: `Failed to delete ${adTypeName} from database`,
         severity: 'error'
       });
     }
