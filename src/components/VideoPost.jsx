@@ -229,6 +229,7 @@ const VideoPost = () => {
     district: '',
     youtubeUrl: '',
     content: '',
+    additionalImages: [null, null, null, null, null], // 5 additional image slots
   });
   const [videoFile, setVideoFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -283,6 +284,80 @@ const VideoPost = () => {
         youtubeUrl: ''
       });
     }
+  };
+
+  const handleAdditionalImageChange = (index, e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData(prev => {
+        const newAdditionalImages = [...prev.additionalImages];
+        newAdditionalImages[index] = e.target.files[0];
+        return {
+          ...prev,
+          additionalImages: newAdditionalImages
+        };
+      });
+    }
+  };
+
+  const removeAdditionalImage = (index) => {
+    setFormData(prev => {
+      const newAdditionalImages = [...prev.additionalImages];
+      newAdditionalImages[index] = null;
+      return {
+        ...prev,
+        additionalImages: newAdditionalImages
+      };
+    });
+  };
+
+  // Add image compression function
+  const compressImage = async (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // Set canvas dimensions
+          let width = img.width;
+          let height = img.height;
+          
+          // Calculate new dimensions while maintaining aspect ratio
+          const maxWidth = 1200;
+          const maxHeight = 1200;
+          
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width *= maxHeight / height;
+              height = maxHeight;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress image
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            }));
+          }, 'image/jpeg', 0.7);
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
   };
 
   const validateForm = () => {
@@ -359,6 +434,7 @@ const VideoPost = () => {
       formDataToSend.append('district', formData.district);
       formDataToSend.append('content', formData.content);
       formDataToSend.append('type', 'video');
+      formDataToSend.append('contentType', 'video'); // Set contentType as video
       
       // Add either YouTube URL or video file
       if (formData.youtubeUrl) {
@@ -369,6 +445,21 @@ const VideoPost = () => {
         console.log('Using video file:', videoFile.name, 'Size:', Math.round(videoFile.size / 1024 / 1024) + 'MB');
       }
 
+      // Handle additional images upload
+      const validAdditionalImages = formData.additionalImages.filter(img => img !== null);
+      for (let i = 0; i < validAdditionalImages.length; i++) {
+        const image = validAdditionalImages[i];
+        
+        // Check file size (5MB limit)
+        if (image.size > 5 * 1024 * 1024) {
+          throw new Error(`Additional image ${i + 1} size should be less than 5MB`);
+        }
+        
+        // Compress additional image
+        const compressedAdditionalImage = await compressImage(image);
+        formDataToSend.append(`additionalImages`, compressedAdditionalImage);
+      }
+
       // Log request details
       console.log('Sending request to:', 'https://api.newztok.in/api/news/admin/create');
       console.log('Request data:', {
@@ -376,10 +467,21 @@ const VideoPost = () => {
         category: formData.category,
         state: formData.state,
         district: formData.district,
+        contentType: 'video',
         contentLength: formData.content?.length || 0,
         hasVideo: !!videoFile,
-        hasYoutubeUrl: !!formData.youtubeUrl
+        hasYoutubeUrl: !!formData.youtubeUrl,
+        additionalImagesCount: validAdditionalImages.length
       });
+      
+      if (validAdditionalImages.length > 0) {
+        console.log('Additional images:', validAdditionalImages.map((img, index) => ({
+          index: index + 1,
+          name: img.name,
+          size: `${(img.size / 1024 / 1024).toFixed(2)} MB`,
+          type: img.type
+        })));
+      }
 
       const response = await axios({
         method: 'POST',
@@ -408,9 +510,21 @@ const VideoPost = () => {
           district: '',
           youtubeUrl: '',
           content: '',
+          additionalImages: [null, null, null, null, null], // Reset additional images
         });
         setVideoFile(null);
         setPreviewUrl('');
+        
+        // Clear all file inputs
+        const fileInputs = document.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+          input.value = '';
+        });
+        
+        // Clear TinyMCE editor
+        if (editorRef.current) {
+          editorRef.current.setContent('');
+        }
       } else {
         // Even if we got a 200 response, check if there's an error message in the response
         setError(response.data.message || 'Failed to create post. Please check all fields and try again.');
@@ -718,6 +832,85 @@ const VideoPost = () => {
             <VideoPreviewBox sx={{ height: '300px' }}>
               {renderPreview()}
             </VideoPreviewBox>
+          </Box>
+
+          {/* Additional Images Section */}
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              sx={{
+                fontSize: '14px',
+                color: '#666',
+                fontFamily: 'Poppins',
+                mb: 2,
+                fontWeight: 500,
+              }}
+            >
+              Additional Images (Optional - Max 5)
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
+              {formData.additionalImages.map((image, index) => (
+                <Box key={index}>
+                  <Typography
+                    sx={{
+                      fontSize: '12px',
+                      color: '#888',
+                      fontFamily: 'Poppins',
+                      mb: 1,
+                    }}
+                  >
+                    Additional Image {index + 1}
+                  </Typography>
+                  <Box
+                    sx={{
+                      border: '1px solid rgba(0, 0, 0, 0.12)',
+                      borderRadius: '4px',
+                      p: 1,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <UploadButton component="label" size="small">
+                      Choose File
+                      <input 
+                        type="file" 
+                        hidden 
+                        accept="image/*" 
+                        onChange={(e) => handleAdditionalImageChange(index, e)}
+                      />
+                    </UploadButton>
+                    <Typography
+                      sx={{
+                        fontSize: '12px',
+                        color: '#666',
+                        fontFamily: 'Poppins',
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {image ? image.name : 'no file selected'}
+                    </Typography>
+                    {image && (
+                      <Button
+                        size="small"
+                        onClick={() => removeAdditionalImage(index)}
+                        sx={{
+                          minWidth: 'auto',
+                          p: 0.5,
+                          color: '#FF3B30',
+                          fontSize: '12px',
+                        }}
+                      >
+                        ✕
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
           </Box>
 
           <Box sx={{ mb: 3 }}>
