@@ -214,6 +214,7 @@ const StandardPost = () => {
     title: '',
     category: '',
     featuredImage: null,
+    additionalImages: [null, null, null, null, null], // 5 additional image slots
     state: '',
     district: '',
     content: '',
@@ -240,6 +241,30 @@ const StandardPost = () => {
     }
   };
 
+  const handleAdditionalImageChange = (index, e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData(prev => {
+        const newAdditionalImages = [...prev.additionalImages];
+        newAdditionalImages[index] = e.target.files[0];
+        return {
+          ...prev,
+          additionalImages: newAdditionalImages
+        };
+      });
+    }
+  };
+
+  const removeAdditionalImage = (index) => {
+    setFormData(prev => {
+      const newAdditionalImages = [...prev.additionalImages];
+      newAdditionalImages[index] = null;
+      return {
+        ...prev,
+        additionalImages: newAdditionalImages
+      };
+    });
+  };
+
   const handleEditorChange = (content) => {
     setFormData(prev => ({
       ...prev,
@@ -253,39 +278,124 @@ const StandardPost = () => {
     setSuccess('');
     setLoading(true);
 
+    // console.log('🔥 PUBLISH STANDARD POST CLICKED');
+    // console.log('='.repeat(60));
+    // console.log('📝 USER INPUT DATA:');
+    // console.log('Title (Headline):', formData.title);
+    // console.log('Category:', formData.category);
+    // console.log('State:', formData.state);
+    // console.log('District:', formData.district);
+    // console.log('Content Preview:', formData.content.substring(0, 150) + (formData.content.length > 150 ? '...' : ''));
+    // console.log('Content Full Length:', formData.content.length, 'characters');
+    
+    // if (formData.featuredImage) {
+    //   console.log('Featured Image Selected:');
+    //   console.log('  - Name:', formData.featuredImage.name);
+    //   console.log('  - Size:', (formData.featuredImage.size / 1024 / 1024).toFixed(2), 'MB');
+    //   console.log('  - Type:', formData.featuredImage.type);
+    // } else {
+    //   console.log('Featured Image: None selected');
+    // }
+    // console.log('='.repeat(60));
+
     try {
       const token = localStorage.getItem('token');
+      // console.log('Token retrieved from localStorage:', token ? 'Token exists' : 'No token found');
       
       if (!token) {
-        console.log('Error: No token found in localStorage');
+        // console.log('❌ Error: No token found in localStorage');
         throw new Error('Please login again. Your session has expired.');
       }
 
+      // Prepare FormData for API
       const formDataToSend = new FormData();
       formDataToSend.append('title', formData.title);
       formDataToSend.append('category', formData.category);
       formDataToSend.append('state', formData.state);
       formDataToSend.append('district', formData.district);
       formDataToSend.append('content', formData.content);
+      formDataToSend.append('contentType', 'standard'); // Explicitly set contentType as standard
       
-      // Handle image upload separately if it exists
+      // console.log('📝 Data being sent to API:');
+      // console.log('- Title (Headline):', formData.title);
+      // console.log('- Category:', formData.category);
+      // console.log('- State:', formData.state);
+      // console.log('- District:', formData.district);
+      // console.log('- Content Type:', 'standard');
+      // console.log('- Content length:', formData.content.length, 'characters');
+      
+      // Handle featured image upload if it exists
       if (formData.featuredImage) {
+        // console.log('🖼️ Featured Image Details:', {
+        //   name: formData.featuredImage.name,
+        //   size: `${(formData.featuredImage.size / 1024 / 1024).toFixed(2)} MB`,
+        //   type: formData.featuredImage.type
+        // });
+        
         // Check file size (5MB limit)
         if (formData.featuredImage.size > 5 * 1024 * 1024) {
-          throw new Error('Image size should be less than 5MB');
+          // console.log('❌ Image too large:', formData.featuredImage.size, 'bytes');
+          throw new Error('Featured image size should be less than 5MB');
         }
+        
         // Compress image if needed
+        // console.log('🔄 Compressing featured image...');
         const compressedImage = await compressImage(formData.featuredImage);
+        // console.log('✅ Featured image compressed:', {
+        //   originalSize: `${(formData.featuredImage.size / 1024 / 1024).toFixed(2)} MB`,
+        //   compressedSize: `${(compressedImage.size / 1024 / 1024).toFixed(2)} MB`
+        // });
+        
         formDataToSend.append('featuredImage', compressedImage);
+      } else {
+        // console.log('📷 No featured image selected');
       }
 
-      console.log('Sending POST request with data:', {
-        title: formData.title,
-        category: formData.category,
-        state: formData.state,
-        district: formData.district,
-        hasFeaturedImage: !!formData.featuredImage
-      });
+      // Handle additional images upload
+      const validAdditionalImages = formData.additionalImages.filter(img => img !== null);
+      for (let i = 0; i < validAdditionalImages.length; i++) {
+        const image = validAdditionalImages[i];
+        
+        // Check file size (5MB limit)
+        if (image.size > 5 * 1024 * 1024) {
+          throw new Error(`Additional image ${i + 1} size should be less than 5MB`);
+        }
+        
+        // Compress additional image
+        const compressedAdditionalImage = await compressImage(image);
+        formDataToSend.append(`additionalImages`, compressedAdditionalImage);
+      }
+
+      // Validate FormData before sending
+      // console.log('🔍 FORMDATA VALIDATION:');
+      const formDataEntries = Array.from(formDataToSend.entries());
+      // console.log('Total FormData entries:', formDataEntries.length);
+      
+      // Check if featuredImage is in FormData
+      const hasImage = formDataEntries.some(([key]) => key === 'featuredImage');
+      // console.log('Featured Image in FormData:', hasImage ? '✅ YES' : '❌ NO');
+      
+      // Log FormData contents
+      // console.log('🚀 Sending POST request to: https://api.newztok.in/api/news/admin/create');
+      // console.log('📦 COMPLETE FormData contents:');
+      // for (let [key, value] of formDataToSend.entries()) {
+      //   if (key === 'featuredImage') {
+      //     console.log(`- ${key}:`, value instanceof File ? 
+      //       `✅ File(name: ${value.name}, size: ${value.size} bytes, type: ${value.type})` : 
+      //       `❌ Not a file: ${value}`);
+      //   } else {
+      //     console.log(`- ${key}:`, value);
+      //   }
+      // }
+      
+      // Ensure featuredImage is properly included
+      if (formData.featuredImage && !hasImage) {
+        // console.log('⚠️ WARNING: Featured image was selected but not found in FormData!');
+        // console.log('Re-adding featuredImage to FormData...');
+        const compressedImage = await compressImage(formData.featuredImage);
+        formDataToSend.append('featuredImage', compressedImage);
+        // console.log('✅ Featured image re-added to FormData');
+      }
 
       // Create axios instance with default config
       const axiosInstance = axios.create({
@@ -299,35 +409,196 @@ const StandardPost = () => {
         maxBodyLength: 50 * 1024 * 1024, // 50MB
       });
 
+      // Final validation before API call
+      // console.log('🔄 FINAL PRE-SEND VALIDATION:');
+      const finalFormDataEntries = Array.from(formDataToSend.entries());
+      const finalHasImage = finalFormDataEntries.some(([key]) => key === 'featuredImage');
+      const finalHasContentType = finalFormDataEntries.some(([key]) => key === 'contentType');
+      
+      // console.log('📊 FINAL SEND SUMMARY:');
+      // console.log('- Title:', formDataToSend.get('title'));
+      // console.log('- Category:', formDataToSend.get('category'));
+      // console.log('- State:', formDataToSend.get('state'));
+      // console.log('- District:', formDataToSend.get('district'));
+      // console.log('- Content Type:', formDataToSend.get('contentType'));
+      // console.log('- Content Length:', formDataToSend.get('content')?.length, 'characters');
+      // console.log('- Featured Image Included:', finalHasImage ? '✅ YES' : '❌ NO');
+      // console.log('- Content Type Set:', finalHasContentType ? '✅ YES' : '❌ NO');
+      
+      if (!finalHasContentType) {
+        // console.log('⚠️ Adding missing contentType...');
+        formDataToSend.append('contentType', 'standard');
+      }
+
+      // Show exactly what data is being posted
+      // console.log('🚀 POSTING DATA TO API - START');
+      // console.log('='.repeat(50));
+      // console.log('📤 DATA BEING POSTED:');
+      // console.log('URL:', 'https://api.newztok.in/api/news/admin/create');
+      // console.log('Method:', 'POST');
+      // console.log('Headers:', {
+      //   'Authorization': `Bearer ${token.substring(0, 20)}...`,
+      //   'Accept': 'application/json',
+      //   'Content-Type': 'multipart/form-data'
+      // });
+      
+      // console.log('📝 FORM DATA BEING SENT:');
+      // console.log('{');
+      // for (let [key, value] of formDataToSend.entries()) {
+      //   if (key === 'featuredImage' && value instanceof File) {
+      //     console.log(`  "${key}": File {`);
+      //     console.log(`    name: "${value.name}",`);
+      //     console.log(`    size: ${value.size} bytes,`);
+      //     console.log(`    type: "${value.type}"`);
+      //     console.log(`  },`);
+      //   } else {
+      //     console.log(`  "${key}": "${value}",`);
+      //   }
+      // }
+      // console.log('}');
+      // console.log('='.repeat(50));
+
+      // console.log('🔄 Making API request...');
       const response = await axiosInstance.post('/api/news/admin/create', formDataToSend);
 
-      console.log('API Response:', response.data);
+      // console.log('📥 API RESPONSE RECEIVED - START');
+      // console.log('='.repeat(50));
+      // console.log('✅ RESPONSE STATUS:', response.status);
+      // console.log('📄 POSTED DATA RECEIVED FROM SERVER:');
+      // console.log(JSON.stringify(response.data, null, 2));
+      // console.log('='.repeat(50));
 
       if (response.status === 200 || response.status === 201) {
-        console.log('Post created successfully!');
-        setSuccess('Post created successfully!');
+        // console.log('🎉 Post created successfully!');
+        
+        // Log the complete posted data
+        if (response.data && response.data.data) {
+          const postData = response.data.data;
+          
+          // console.log('📄 COMPLETE POSTED DATA:');
+          // console.log('Raw data object:', postData);
+          // console.log('All object keys:', Object.keys(postData));
+          // console.log('JSON representation:', JSON.stringify(postData, null, 2));
+          
+          // console.log('📄 POSTED DATA DETAILS:');
+          // console.log('- Post ID:', postData.id || 'Not provided');
+          // console.log('- Title (Headline):', postData.title || 'Not provided');
+          // console.log('- Content:', postData.content || 'Not provided');
+          // console.log('- Category:', postData.category || 'Not provided');
+          // console.log('- State:', postData.state || 'Not provided');
+          // console.log('- District:', postData.district || 'Not provided');
+          // console.log('- Status:', postData.status || 'Not provided');
+          // console.log('- Content Type:', postData.contentType || 'Not provided');
+          // console.log('- Admin ID:', postData.adminId || 'Not provided');
+          // console.log('- Journalist ID:', postData.journalistId || 'Not provided');
+          // console.log('- Views:', postData.views || 'Not provided');
+          // console.log('- Is Featured:', postData.isFeatured || 'Not provided');
+          // console.log('- Created At:', postData.createdAt || 'Not provided');
+          // console.log('- Updated At:', postData.updatedAt || 'Not provided');
+          
+          // console.log('🖼️ IMAGE FIELDS CHECK:');
+          // console.log('- featuredImage exists?', 'featuredImage' in postData);
+          // console.log('- featuredImage value:', postData.featuredImage);
+          // console.log('- featuredImage type:', typeof postData.featuredImage);
+          // console.log('- thumbnailUrl exists?', 'thumbnailUrl' in postData);
+          // console.log('- thumbnailUrl value:', postData.thumbnailUrl);
+          // console.log('- thumbnailUrl type:', typeof postData.thumbnailUrl);
+          
+          // if (postData.featuredImage || postData.thumbnailUrl) {
+          //   console.log('✅ Featured image data found!');
+          //   if (postData.featuredImage) {
+          //     console.log('- Featured Image Path:', postData.featuredImage);
+          //     console.log('- Full Featured Image URL:', `https://api.newztok.in${postData.featuredImage}`);
+          //   }
+          //   if (postData.thumbnailUrl) {
+          //     console.log('- Thumbnail URL:', postData.thumbnailUrl);
+          //     console.log('- Full Thumbnail URL:', `https://api.newztok.in${postData.thumbnailUrl}`);
+          //   }
+          // } else {
+          //   console.log('❌ No featured image data found in response');
+          //   console.log('This could mean:');
+          //   console.log('1. Image was not uploaded properly');
+          //   console.log('2. Server processed the request but image upload failed');
+          //   console.log('3. API response structure is different than expected');
+          // }
+          
+          // console.log('📊 POSTED DATA SUMMARY:');
+          // console.log('='.repeat(40));
+          // console.log('🆔 Post ID:', postData.id);
+          // console.log('📰 Title:', postData.title);
+          // console.log('📂 Category:', postData.category);
+          // console.log('🌍 State:', postData.state);
+          // console.log('🏙️ District:', postData.district);
+          // console.log('📝 Status:', postData.status);
+          // console.log('🔤 Content Type:', postData.contentType);
+          // console.log('👤 Admin ID:', postData.adminId);
+          // console.log('📊 Views:', postData.views);
+          // console.log('⭐ Is Featured:', postData.isFeatured);
+          
+          // if (postData.featuredImage) {
+          //   console.log('🖼️ Featured Image:', postData.featuredImage);
+          //   console.log('🔗 Full Image URL:', `https://api.newztok.in${postData.featuredImage}`);
+          // } else {
+          //   console.log('📷 Featured Image: Not uploaded');
+          // }
+          
+          // if (postData.thumbnailUrl) {
+          //   console.log('🖼️ Thumbnail:', postData.thumbnailUrl);
+          // }
+          
+          // console.log('📅 Created:', postData.createdAt);
+          // console.log('🔄 Updated:', postData.updatedAt);
+          // console.log('='.repeat(40));
+        } else {
+          // console.log('❌ No data object found in response');
+          // console.log('Response structure:', response.data);
+        }
+        
+        setSuccess('Standard Post created and published successfully!');
+        
         // Reset form
+        // console.log('🔄 Resetting form...');
         setFormData({
           title: '',
           category: '',
           featuredImage: null,
+          additionalImages: [null, null, null, null, null], // Reset additional images
           state: '',
           district: '',
           content: '',
         });
+        
+        // Clear all file inputs
+        const fileInputs = document.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+          input.value = '';
+        });
+        // console.log('✅ File inputs cleared');
+        
+        // Clear TinyMCE editor
+        if (editorRef.current) {
+          editorRef.current.setContent('');
+          // console.log('✅ TinyMCE editor cleared');
+        }
+        
+        // console.log('✅ Form reset completed');
       }
     } catch (err) {
-      console.error('Error details:', {
-        status: err.response?.status,
-        message: err.response?.data?.message,
-        data: err.response?.data
-      });
+      // console.log('❌ Error occurred during post creation:');
+      // console.error('Full error details:', {
+      //   message: err.message,
+      //   status: err.response?.status,
+      //   statusText: err.response?.statusText,
+      //   responseData: err.response?.data,
+      //   url: err.config?.url,
+      //   method: err.config?.method
+      // });
 
       if (err.response?.status === 413) {
-        console.log('File too large error');
+        // console.log('❌ File too large error');
         setError('The file you are trying to upload is too large. Please upload a file smaller than 5MB.');
       } else if (err.response?.status === 403) {
-        console.log('Access denied error:', err.response.data);
+        // console.log('❌ Access denied error:', err.response.data);
         if (err.response?.data?.message === 'Access denied. Insufficient privileges') {
           setError(
             <div>
@@ -344,20 +615,22 @@ const StandardPost = () => {
           setError('Access denied. Please check your permissions or login again.');
         }
       } else if (err.response?.status === 401) {
-        console.log('Authentication error: Session expired');
+        // console.log('❌ Authentication error: Session expired');
         setError('Your session has expired. Please login again.');
       } else if (err.response?.data?.message) {
-        console.log('API error message:', err.response.data.message);
+        // console.log('❌ API error message:', err.response.data.message);
         setError(err.response.data.message);
       } else if (err.message) {
-        console.log('General error:', err.message);
+        // console.log('❌ General error:', err.message);
         setError(err.message);
       } else {
-        console.log('Unknown error occurred');
+        // console.log('❌ Unknown error occurred');
         setError('Failed to create post. Please try again.');
       }
     } finally {
       setLoading(false);
+      // console.log('🏁 PUBLISH PROCESS COMPLETED');
+      // console.log('='.repeat(60));
     }
   };
 
@@ -536,6 +809,85 @@ const StandardPost = () => {
                   {formData.featuredImage ? formData.featuredImage.name : 'no file selected'}
                 </Typography>
               </Box>
+            </Box>
+          </Box>
+
+          {/* Additional Images Section */}
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              sx={{
+                fontSize: '14px',
+                color: '#666',
+                fontFamily: 'Poppins',
+                mb: 2,
+                fontWeight: 500,
+              }}
+            >
+              Additional Images (Optional - Max 5)
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
+              {formData.additionalImages.map((image, index) => (
+                <Box key={index}>
+                  <Typography
+                    sx={{
+                      fontSize: '12px',
+                      color: '#888',
+                      fontFamily: 'Poppins',
+                      mb: 1,
+                    }}
+                  >
+                    Additional Image {index + 1}
+                  </Typography>
+                  <Box
+                    sx={{
+                      border: '1px solid rgba(0, 0, 0, 0.12)',
+                      borderRadius: '4px',
+                      p: 1,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <UploadButton component="label" size="small">
+                      Choose File
+                      <input 
+                        type="file" 
+                        hidden 
+                        accept="image/*" 
+                        onChange={(e) => handleAdditionalImageChange(index, e)}
+                      />
+                    </UploadButton>
+                    <Typography
+                      sx={{
+                        fontSize: '12px',
+                        color: '#666',
+                        fontFamily: 'Poppins',
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {image ? image.name : 'no file selected'}
+                    </Typography>
+                    {image && (
+                      <Button
+                        size="small"
+                        onClick={() => removeAdditionalImage(index)}
+                        sx={{
+                          minWidth: 'auto',
+                          p: 0.5,
+                          color: '#FF3B30',
+                          fontSize: '12px',
+                        }}
+                      >
+                        ✕
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
+              ))}
             </Box>
           </Box>
 

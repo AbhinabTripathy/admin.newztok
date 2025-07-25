@@ -22,6 +22,7 @@ import {
   Analytics as AnalyticsIcon,
   Settings as SettingsIcon,
   ExitToApp as LogoutIcon,
+  PhoneAndroid as AppVersionIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -65,6 +66,7 @@ const menuItems = [
   { text: 'MANAGEMENT', section: true },
   { text: 'Manage Users', icon: <GroupIcon />, path: '/manage-users' },
   { text: 'Manage Ads', icon: <MonetizationOnIcon />, path: '/manage-ads' },
+  { text: 'App Version', icon: <AppVersionIcon />, path: '/app-version' },
   { text: 'ANALYTICS', section: true },
   { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
 ];
