@@ -11,12 +11,15 @@ import {
   Snackbar,
   InputAdornment,
   Divider,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   PhoneAndroid as AndroidIcon,
   PhoneIphone as IosIcon,
   SystemUpdate as UpdateIcon,
   CloudUpload as PostIcon,
+  Message as ChangeLogIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -24,7 +27,12 @@ const AppVersion = () => {
   const [versions, setVersions] = useState({
     androidVersion: '',
     iosVersion: '',
-    forcefulUpdateVersion: '',
+    changeLog: '',
+    forceUpdate: false,
+  });
+  const [currentVersions, setCurrentVersions] = useState({
+    android: { latestVersion: '', forceUpdate: false, changeLog: '', id: null, createdAt: '', updatedAt: '' },
+    ios: { latestVersion: '', forceUpdate: false, changeLog: '', id: null, createdAt: '', updatedAt: '' },
   });
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -39,25 +47,142 @@ const AppVersion = () => {
   }, []);
 
   const fetchVersions = async () => {
+    console.log('🔄 Fetching current version values...');
+    
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('https://api.newztok.in/api/app-versions', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
+      console.log('Using token for API requests:', token ? 'Token exists' : 'No token found');
       
-      if (response.data && response.data.data) {
-        setVersions({
-          androidVersion: response.data.data.androidVersion || '',
-          iosVersion: response.data.data.iosVersion || '',
-          forcefulUpdateVersion: response.data.data.forcefulUpdateVersion || '',
+      // Fetch Android version using GET method
+      try {
+        console.log('📱 Fetching Android version from: https://api.newztok.in/api/versions/android');
+        
+        const androidResponse = await axios.get('https://api.newztok.in/api/versions/android', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+        
+        console.log('✅ Android API Response:', androidResponse.data);
+        console.log('🔍 Full response structure:', JSON.stringify(androidResponse.data, null, 2));
+        
+        // Handle deeply nested data structure - the actual data is in .data.version
+        const androidResponseData = androidResponse.data?.data?.version || androidResponse.data?.data || androidResponse.data;
+        
+        console.log('🎯 Extracted Android response data:', androidResponseData);
+        
+        if (androidResponseData) {
+          const androidData = {
+            platform: androidResponseData.platform || 'android',
+            latestVersion: androidResponseData.latestVersion || '',
+            forceUpdate: androidResponseData.forceUpdate || false,
+            changeLog: androidResponseData.changeLog || '',
+            id: androidResponseData.id || null,
+            createdAt: androidResponseData.createdAt || '',
+            updatedAt: androidResponseData.updatedAt || ''
+          };
+          
+          console.log('📊 Android version data extracted for UI:', androidData);
+          
+          setCurrentVersions(prev => {
+            const updatedState = {
+              ...prev,
+              android: {
+                latestVersion: androidData.latestVersion,
+                forceUpdate: androidData.forceUpdate,
+                changeLog: androidData.changeLog,
+                id: androidData.id,
+                createdAt: androidData.createdAt,
+                updatedAt: androidData.updatedAt,
+              }
+            };
+            console.log('🔄 Updating Android state:', updatedState.android);
+            return updatedState;
+          });
+        } else {
+          console.log('⚠️ No Android data received from API');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching Android version:', error);
+        console.error('Android API Error details:', {
+          status: error.response?.status,
+          message: error.response?.data?.message,
+          data: error.response?.data
         });
       }
+
+      // Fetch iOS version using GET method
+      try {
+        console.log('📱 Fetching iOS version from: https://api.newztok.in/api/versions/ios');
+        
+        const iosResponse = await axios.get('https://api.newztok.in/api/versions/ios', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+        
+        console.log('✅ iOS API Response:', iosResponse.data);
+        console.log('🔍 Full iOS response structure:', JSON.stringify(iosResponse.data, null, 2));
+        
+        // Handle deeply nested data structure - the actual data is in .data.version
+        const iosResponseData = iosResponse.data?.data?.version || iosResponse.data?.data || iosResponse.data;
+        
+        console.log('🎯 Extracted iOS response data:', iosResponseData);
+        
+        if (iosResponseData) {
+          const iosData = {
+            platform: iosResponseData.platform || 'ios',
+            latestVersion: iosResponseData.latestVersion || '',
+            forceUpdate: iosResponseData.forceUpdate || false,
+            changeLog: iosResponseData.changeLog || '',
+            id: iosResponseData.id || null,
+            createdAt: iosResponseData.createdAt || '',
+            updatedAt: iosResponseData.updatedAt || ''
+          };
+          
+          console.log('📊 iOS version data extracted for UI:', iosData);
+          
+          setCurrentVersions(prev => {
+            const updatedState = {
+              ...prev,
+              ios: {
+                latestVersion: iosData.latestVersion,
+                forceUpdate: iosData.forceUpdate,
+                changeLog: iosData.changeLog,
+                id: iosData.id,
+                createdAt: iosData.createdAt,
+                updatedAt: iosData.updatedAt,
+              }
+            };
+            console.log('🔄 Updating iOS state:', updatedState.ios);
+            return updatedState;
+          });
+        } else {
+          console.log('⚠️ No iOS data received from API');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching iOS version:', error);
+        console.error('iOS API Error details:', {
+          status: error.response?.status,
+          message: error.response?.data?.message,
+          data: error.response?.data
+        });
+      }
+      
+      console.log('✅ Version fetching completed');
+      
+      // Log final state after a brief delay to ensure state updates are complete
+      setTimeout(() => {
+        console.log('📊 Final currentVersions state:', {
+          android: currentVersions.android,
+          ios: currentVersions.ios
+        });
+      }, 100);
+      
     } catch (error) {
-      console.error('Error fetching versions:', error);
-      // Don't show error for fetching, as the API might not exist yet
+      console.error('❌ General error fetching versions:', error);
     }
   };
 
@@ -69,41 +194,135 @@ const AppVersion = () => {
   };
 
   const handlePost = async () => {
-    if (!versions.androidVersion || !versions.iosVersion || !versions.forcefulUpdateVersion) {
+    // Validate that at least one platform version is provided
+    if (!versions.androidVersion && !versions.iosVersion) {
       setSnackbar({
         open: true,
-        message: 'Please fill in all version fields',
+        message: 'Please provide at least one platform version (Android or iOS)',
+        severity: 'error',
+      });
+      return;
+    }
+
+    // Validate changeLog
+    if (!versions.changeLog.trim()) {
+      setSnackbar({
+        open: true,
+        message: 'Please provide a change log message',
         severity: 'error',
       });
       return;
     }
 
     setLoading(true);
+    let successCount = 0;
+    let errorMessages = [];
+
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(
-        'https://api.newztok.in/api/app-versions',
-        versions,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        }
-      );
 
-      console.log('Version update response:', response.data);
-      setSnackbar({
-        open: true,
-        message: 'App versions updated successfully!',
-        severity: 'success',
-      });
+      // Post Android version if provided
+      if (versions.androidVersion.trim()) {
+        try {
+          const androidData = {
+            platform: 'android',
+            latestVersion: versions.androidVersion,
+            changeLog: versions.changeLog,
+            forceUpdate: versions.forceUpdate
+          };
+
+          console.log('Posting Android data:', androidData);
+
+          const androidResponse = await axios.post(
+            'https://api.newztok.in/api/versions/update',
+            androidData,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              }
+            }
+          );
+
+          console.log('Android version update response:', androidResponse.data);
+          successCount++;
+        } catch (error) {
+          console.error('Error updating Android version:', error);
+          errorMessages.push(`Android: ${error.response?.data?.message || error.message}`);
+        }
+      }
+
+      // Post iOS version if provided
+      if (versions.iosVersion.trim()) {
+        try {
+          const iosData = {
+            platform: 'ios',
+            latestVersion: versions.iosVersion,
+            changeLog: versions.changeLog,
+            forceUpdate: versions.forceUpdate
+          };
+
+          console.log('Posting iOS data:', iosData);
+
+          const iosResponse = await axios.post(
+            'https://api.newztok.in/api/versions/update',
+            iosData,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              }
+            }
+          );
+
+          console.log('iOS version update response:', iosResponse.data);
+          successCount++;
+        } catch (error) {
+          console.error('Error updating iOS version:', error);
+          errorMessages.push(`iOS: ${error.response?.data?.message || error.message}`);
+        }
+      }
+
+      // Show appropriate message based on results
+      if (successCount > 0 && errorMessages.length === 0) {
+        setSnackbar({
+          open: true,
+          message: `Successfully updated ${successCount} platform version(s)!`,
+          severity: 'success',
+        });
+        
+        // Refresh the current versions after successful update
+        fetchVersions();
+        
+        // Clear the form
+        setVersions({
+          androidVersion: '',
+          iosVersion: '',
+          changeLog: '',
+          forceUpdate: false,
+        });
+      } else if (successCount > 0 && errorMessages.length > 0) {
+        setSnackbar({
+          open: true,
+          message: `Partially successful: ${successCount} updated, ${errorMessages.length} failed. Errors: ${errorMessages.join(', ')}`,
+          severity: 'warning',
+        });
+        fetchVersions(); // Refresh to show updated versions
+      } else {
+        setSnackbar({
+          open: true,
+          message: `Failed to update versions. Errors: ${errorMessages.join(', ')}`,
+          severity: 'error',
+        });
+      }
+
     } catch (error) {
-      console.error('Error updating versions:', error);
+      console.error('General error updating versions:', error);
       setSnackbar({
         open: true,
-        message: error.response?.data?.message || 'Failed to update app versions',
+        message: 'Failed to update app versions',
         severity: 'error',
       });
     } finally {
@@ -160,7 +379,7 @@ const AppVersion = () => {
         {/* Version Input Fields */}
         <Grid container spacing={3}>
           {/* Android Version */}
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={6}>
             <Box sx={{ mb: 3 }}>
               <Typography
                 variant="h6"
@@ -175,7 +394,7 @@ const AppVersion = () => {
                 }}
               >
                 <AndroidIcon sx={{ color: '#4CAF50' }} />
-                Android Version
+                Android Version (Optional)
               </Typography>
               <TextField
                 fullWidth
@@ -206,7 +425,7 @@ const AppVersion = () => {
           </Grid>
 
           {/* iOS Version */}
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={6}>
             <Box sx={{ mb: 3 }}>
               <Typography
                 variant="h6"
@@ -221,7 +440,7 @@ const AppVersion = () => {
                 }}
               >
                 <IosIcon sx={{ color: '#007AFF' }} />
-                iOS Version
+                iOS Version (Optional)
               </Typography>
               <TextField
                 fullWidth
@@ -251,8 +470,8 @@ const AppVersion = () => {
             </Box>
           </Grid>
 
-          {/* Forceful Update Version */}
-          <Grid item xs={12} md={4}>
+          {/* Change Log */}
+          <Grid item xs={12}>
             <Box sx={{ mb: 3 }}>
               <Typography
                 variant="h6"
@@ -266,19 +485,21 @@ const AppVersion = () => {
                   gap: 1,
                 }}
               >
-                <UpdateIcon sx={{ color: '#FF9800' }} />
-                Forceful Update Version
+                <ChangeLogIcon sx={{ color: '#2196F3' }} />
+                Change Log Message
               </Typography>
               <TextField
                 fullWidth
                 variant="outlined"
-                placeholder="e.g., 1.0.0"
-                value={versions.forcefulUpdateVersion}
-                onChange={(e) => handleInputChange('forcefulUpdateVersion', e.target.value)}
+                placeholder="e.g., New UI & bug fixes"
+                value={versions.changeLog}
+                onChange={(e) => handleInputChange('changeLog', e.target.value)}
+                multiline
+                rows={3}
                 InputProps={{
                   startAdornment: (
-                    <InputAdornment position="start">
-                      <UpdateIcon sx={{ color: '#FF9800' }} />
+                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                      <ChangeLogIcon sx={{ color: '#2196F3' }} />
                     </InputAdornment>
                   ),
                 }}
@@ -286,11 +507,67 @@ const AppVersion = () => {
                   '& .MuiOutlinedInput-root': {
                     fontFamily: 'Poppins',
                     '&:hover fieldset': {
-                      borderColor: '#FF9800',
+                      borderColor: '#2196F3',
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#FF9800',
+                      borderColor: '#2196F3',
                     },
+                  },
+                }}
+              />
+            </Box>
+          </Grid>
+
+          {/* Force Update Toggle */}
+          <Grid item xs={12}>
+            <Box sx={{ mb: 3, textAlign: 'center' }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontFamily: 'Poppins',
+                  fontWeight: 500,
+                  color: '#333',
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1,
+                }}
+              >
+                <UpdateIcon sx={{ color: '#FF9800' }} />
+                Force Update Setting
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={versions.forceUpdate}
+                    onChange={(e) => handleInputChange('forceUpdate', e.target.checked)}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: '#FF0000',
+                      },
+                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                        backgroundColor: '#FF0000',
+                      },
+                    }}
+                  />
+                }
+                label={
+                  <Typography
+                    sx={{
+                      fontFamily: 'Poppins',
+                      fontWeight: 500,
+                      color: versions.forceUpdate ? '#4CAF50' : '#FF0000',
+                      fontSize: '16px',
+                    }}
+                  >
+                    {versions.forceUpdate ? 'Force Update: True' : 'Force Update: False'}
+                  </Typography>
+                }
+                labelPlacement="end"
+                sx={{
+                  '& .MuiFormControlLabel-label': {
+                    ml: 2,
                   },
                 }}
               />
@@ -341,26 +618,62 @@ const AppVersion = () => {
               fontFamily: 'Poppins',
               fontWeight: 500,
               color: '#333',
-              mb: 2,
+              mb: 3,
             }}
           >
             Current Version Values:
           </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Typography variant="body2" sx={{ fontFamily: 'Poppins', color: '#666' }}>
-                <strong>Android:</strong> {versions.androidVersion || 'Not set'}
-              </Typography>
+          <Grid container spacing={3}>
+            {/* Android Current Version */}
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 2, backgroundColor: '#ffffff', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                <Typography variant="body1" sx={{ fontFamily: 'Poppins', color: '#333', fontWeight: 500, mb: 1 }}>
+                  <AndroidIcon sx={{ color: '#4CAF50', mr: 1, verticalAlign: 'middle' }} />
+                  Android
+                </Typography>
+                <Typography variant="body2" sx={{ fontFamily: 'Poppins', color: '#666', mb: 0.5 }}>
+                  <strong>Version:</strong> {currentVersions.android.latestVersion || 'Not set'}
+                </Typography>
+                <Typography variant="body2" sx={{ fontFamily: 'Poppins', color: '#666', mb: 0.5 }}>
+                  <strong>Force Update:</strong> 
+                  <Typography 
+                    component="span" 
+                    sx={{ 
+                      color: currentVersions.android.forceUpdate ? '#4CAF50' : '#FF0000',
+                      fontWeight: 500,
+                      ml: 0.5
+                    }}
+                  >
+                    {currentVersions.android.forceUpdate ? 'True' : 'False'}
+                  </Typography>
+                </Typography>
+              </Box>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <Typography variant="body2" sx={{ fontFamily: 'Poppins', color: '#666' }}>
-                <strong>iOS:</strong> {versions.iosVersion || 'Not set'}
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Typography variant="body2" sx={{ fontFamily: 'Poppins', color: '#666' }}>
-                <strong>Forceful Update:</strong> {versions.forcefulUpdateVersion || 'Not set'}
-              </Typography>
+
+            {/* iOS Current Version */}
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 2, backgroundColor: '#ffffff', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                <Typography variant="body1" sx={{ fontFamily: 'Poppins', color: '#333', fontWeight: 500, mb: 1 }}>
+                  <IosIcon sx={{ color: '#007AFF', mr: 1, verticalAlign: 'middle' }} />
+                  iOS
+                </Typography>
+                <Typography variant="body2" sx={{ fontFamily: 'Poppins', color: '#666', mb: 0.5 }}>
+                  <strong>Version:</strong> {currentVersions.ios.latestVersion || 'Not set'}
+                </Typography>
+                <Typography variant="body2" sx={{ fontFamily: 'Poppins', color: '#666', mb: 0.5 }}>
+                  <strong>Force Update:</strong> 
+                  <Typography 
+                    component="span" 
+                    sx={{ 
+                      color: currentVersions.ios.forceUpdate ? '#4CAF50' : '#FF0000',
+                      fontWeight: 500,
+                      ml: 0.5
+                    }}
+                  >
+                    {currentVersions.ios.forceUpdate ? 'True' : 'False'}
+                  </Typography>
+                </Typography>
+              </Box>
             </Grid>
           </Grid>
         </Box>
