@@ -214,7 +214,7 @@ const StandardPost = () => {
     title: '',
     category: '',
     featuredImage: null,
-    additionalImages: [null, null, null, null, null], // 5 additional image slots
+    additionalImages: [null, null, null, null], // 4 additional image slots
     state: '',
     district: '',
     content: '',
@@ -324,56 +324,27 @@ const StandardPost = () => {
       // console.log('- Content Type:', 'standard');
       // console.log('- Content length:', formData.content.length, 'characters');
       
-      // Handle featured image upload if it exists
-      if (formData.featuredImage) {
-        // console.log('🖼️ Featured Image Details:', {
-        //   name: formData.featuredImage.name,
-        //   size: `${(formData.featuredImage.size / 1024 / 1024).toFixed(2)} MB`,
-        //   type: formData.featuredImage.type
-        // });
-        
-        // Check file size (5MB limit)
-        if (formData.featuredImage.size > 5 * 1024 * 1024) {
-          // console.log('❌ Image too large:', formData.featuredImage.size, 'bytes');
-          throw new Error('Featured image size should be less than 5MB');
-        }
-        
-        // Compress image if needed
-        // console.log('🔄 Compressing featured image...');
-        const compressedImage = await compressImage(formData.featuredImage);
-        // console.log('✅ Featured image compressed:', {
-        //   originalSize: `${(formData.featuredImage.size / 1024 / 1024).toFixed(2)} MB`,
-        //   compressedSize: `${(compressedImage.size / 1024 / 1024).toFixed(2)} MB`
-        // });
-        
-        formDataToSend.append('featuredImage', compressedImage);
-      } else {
-        // console.log('📷 No featured image selected');
-      }
-
-      // Handle additional images upload
-      const validAdditionalImages = formData.additionalImages.filter(img => img !== null);
-      for (let i = 0; i < validAdditionalImages.length; i++) {
-        const image = validAdditionalImages[i];
-        
-        // Check file size (5MB limit)
-        if (image.size > 5 * 1024 * 1024) {
-          throw new Error(`Additional image ${i + 1} size should be less than 5MB`);
-        }
-        
-        // Compress additional image
-        const compressedAdditionalImage = await compressImage(image);
-        formDataToSend.append(`additionalImages`, compressedAdditionalImage);
-      }
+      // TEMPORARILY DISABLE IMAGES TO TEST TEXT-ONLY POST CREATION
+      console.log('TESTING: Skipping all images to test basic post creation');
+      
+      // TODO: Re-enable images after confirming text fields work
+      // if (formData.featuredImage) {
+      //   console.log('Featured image selected but skipped for testing');
+      // }
+      // 
+      // const validAdditionalImages = formData.additionalImages.filter(img => img !== null);
+      // if (validAdditionalImages.length > 0) {
+      //   console.log(`${validAdditionalImages.length} additional images selected but skipped for testing`);
+      // }
 
       // Validate FormData before sending
       // console.log('🔍 FORMDATA VALIDATION:');
       const formDataEntries = Array.from(formDataToSend.entries());
       // console.log('Total FormData entries:', formDataEntries.length);
       
-      // Check if featuredImage is in FormData
-      const hasImage = formDataEntries.some(([key]) => key === 'featuredImage');
-      // console.log('Featured Image in FormData:', hasImage ? '✅ YES' : '❌ NO');
+      // Check if featuredImage is in FormData (disabled for testing)
+      const hasImage = false; // formDataEntries.some(([key]) => key === 'featuredImage');
+      console.log('Featured Image in FormData: DISABLED FOR TESTING');
       
       // Log FormData contents
       // console.log('🚀 Sending POST request to: https://api.newztok.in/api/news/admin/create');
@@ -388,14 +359,8 @@ const StandardPost = () => {
       //   }
       // }
       
-      // Ensure featuredImage is properly included
-      if (formData.featuredImage && !hasImage) {
-        // console.log('⚠️ WARNING: Featured image was selected but not found in FormData!');
-        // console.log('Re-adding featuredImage to FormData...');
-        const compressedImage = await compressImage(formData.featuredImage);
-        formDataToSend.append('featuredImage', compressedImage);
-        // console.log('✅ Featured image re-added to FormData');
-      }
+      // Skip image re-adding for testing
+      console.log('TESTING: Skipping image re-adding logic');
 
       // Create axios instance with default config
       const axiosInstance = axios.create({
@@ -403,7 +368,7 @@ const StandardPost = () => {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data',
+          // Let axios set Content-Type automatically for FormData
         },
         maxContentLength: 50 * 1024 * 1024, // 50MB
         maxBodyLength: 50 * 1024 * 1024, // 50MB
@@ -412,7 +377,7 @@ const StandardPost = () => {
       // Final validation before API call
       // console.log('🔄 FINAL PRE-SEND VALIDATION:');
       const finalFormDataEntries = Array.from(formDataToSend.entries());
-      const finalHasImage = finalFormDataEntries.some(([key]) => key === 'featuredImage');
+      const finalHasImage = false; // finalFormDataEntries.some(([key]) => key === 'featuredImage');
       const finalHasContentType = finalFormDataEntries.some(([key]) => key === 'contentType');
       
       // console.log('📊 FINAL SEND SUMMARY:');
@@ -458,7 +423,21 @@ const StandardPost = () => {
       // console.log('}');
       // console.log('='.repeat(50));
 
-      // console.log('🔄 Making API request...');
+      // Log final FormData contents for debugging
+      console.log('Final FormData being sent to API:');
+      for (let [key, value] of formDataToSend.entries()) {
+        if (value instanceof File) {
+          console.log(`${key}:`, {
+            name: value.name,
+            size: `${(value.size / 1024 / 1024).toFixed(2)} MB`,
+            type: value.type
+          });
+        } else {
+          console.log(`${key}:`, value);
+        }
+      }
+
+      console.log('Making API request to /api/news/admin/create...');
       const response = await axiosInstance.post('/api/news/admin/create', formDataToSend);
 
       // console.log('📥 API RESPONSE RECEIVED - START');
@@ -562,7 +541,7 @@ const StandardPost = () => {
           title: '',
           category: '',
           featuredImage: null,
-          additionalImages: [null, null, null, null, null], // Reset additional images
+          additionalImages: [null, null, null, null], // Reset additional images
           state: '',
           district: '',
           content: '',
@@ -584,17 +563,21 @@ const StandardPost = () => {
         // console.log('✅ Form reset completed');
       }
     } catch (err) {
-      // console.log('❌ Error occurred during post creation:');
-      // console.error('Full error details:', {
-      //   message: err.message,
-      //   status: err.response?.status,
-      //   statusText: err.response?.statusText,
-      //   responseData: err.response?.data,
-      //   url: err.config?.url,
-      //   method: err.config?.method
-      // });
+      console.error('Error occurred during post creation:', {
+        message: err.message,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        responseData: err.response?.data,
+        url: err.config?.url,
+        method: err.config?.method
+      });
 
-      if (err.response?.status === 413) {
+      if (err.response?.status === 400) {
+        // Handle Bad Request error
+        const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Invalid request format';
+        console.error('Bad Request Error:', errorMessage);
+        setError(`Bad Request: ${errorMessage}`);
+      } else if (err.response?.status === 413) {
         // console.log('❌ File too large error');
         setError('The file you are trying to upload is too large. Please upload a file smaller than 5MB.');
       } else if (err.response?.status === 403) {
@@ -823,7 +806,7 @@ const StandardPost = () => {
                 fontWeight: 500,
               }}
             >
-              Additional Images (Optional - Max 5)
+              Additional Images (Optional - Max 4)
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
               {formData.additionalImages.map((image, index) => (

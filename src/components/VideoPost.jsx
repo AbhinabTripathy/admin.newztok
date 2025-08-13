@@ -229,7 +229,7 @@ const VideoPost = () => {
     district: '',
     youtubeUrl: '',
     content: '',
-    additionalImages: [null, null, null, null, null], // 5 additional image slots
+    additionalImages: [null, null, null, null], // 4 additional image slots
   });
   const [videoFile, setVideoFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -428,50 +428,62 @@ const VideoPost = () => {
       console.log('Using token (first 10 chars):', token.substring(0, 10) + '...');
 
       const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.title);
-      formDataToSend.append('category', formData.category);
-      formDataToSend.append('state', formData.state);
-      formDataToSend.append('district', formData.district);
-      formDataToSend.append('content', formData.content);
-      formDataToSend.append('type', 'video');
-      formDataToSend.append('contentType', 'video'); // Set contentType as video
+      
+      // Core post data - mapping field names correctly
+      formDataToSend.append('title', formData.title);           // Headline → title
+      formDataToSend.append('category', formData.category);     // Category → category
+      formDataToSend.append('state', formData.state);           // State → state
+      formDataToSend.append('district', formData.district);     // District → district
+      formDataToSend.append('content', formData.content);       // Content → content
+      formDataToSend.append('contentType', 'video');            // Set contentType as video
       
       // Add either YouTube URL or video file
       if (formData.youtubeUrl) {
-        formDataToSend.append('youtubeUrl', formData.youtubeUrl);
+        formDataToSend.append('youtubeUrl', formData.youtubeUrl); // YouTube Link → youtubeUrl
         console.log('Using YouTube URL:', formData.youtubeUrl);
       } else if (videoFile) {
         formDataToSend.append('video', videoFile);
         console.log('Using video file:', videoFile.name, 'Size:', Math.round(videoFile.size / 1024 / 1024) + 'MB');
       }
 
-      // Handle additional images upload
+      // TEMPORARILY DISABLE ADDITIONAL IMAGES TO TEST BASIC VIDEO POST
       const validAdditionalImages = formData.additionalImages.filter(img => img !== null);
-      for (let i = 0; i < validAdditionalImages.length; i++) {
-        const image = validAdditionalImages[i];
-        
-        // Check file size (5MB limit)
-        if (image.size > 5 * 1024 * 1024) {
-          throw new Error(`Additional image ${i + 1} size should be less than 5MB`);
-        }
-        
-        // Compress additional image
-        const compressedAdditionalImage = await compressImage(image);
-        formDataToSend.append(`additionalImages`, compressedAdditionalImage);
-      }
+      console.log(`Found ${validAdditionalImages.length} additional images - TEMPORARILY DISABLED TO TEST BASIC POST`);
+      
+      // TODO: Will re-enable after confirming basic video post works without images
+      // for (let i = 0; i < validAdditionalImages.length; i++) {
+      //   const image = validAdditionalImages[i];
+      //   
+      //   // Check file size (5MB limit)
+      //   if (image.size > 5 * 1024 * 1024) {
+      //     throw new Error(`Additional image ${i + 1} size should be less than 5MB`);
+      //   }
+      //   
+      //   // Compress additional image
+      //   const compressedAdditionalImage = await compressImage(image);
+      //   
+      //   // Try different field names that the API might expect
+      //   formDataToSend.append(`image${i + 1}`, compressedAdditionalImage);
+      //   console.log(`Added additional image ${i + 1} to FormData as image${i + 1}`);
+      //   console.log(`Image details:`, {
+      //     originalName: image.name,
+      //     originalSize: `${(image.size / 1024 / 1024).toFixed(2)} MB`,
+      //     compressedSize: `${(compressedAdditionalImage.size / 1024 / 1024).toFixed(2)} MB`,
+      //     type: compressedAdditionalImage.type
+      //   });
+      // }
 
-      // Log request details
+      // Log request details - showing field mappings
       console.log('Sending request to:', 'https://api.newztok.in/api/news/admin/create');
-      console.log('Request data:', {
-        title: formData.title,
-        category: formData.category,
-        state: formData.state,
-        district: formData.district,
-        contentType: 'video',
-        contentLength: formData.content?.length || 0,
-        hasVideo: !!videoFile,
-        hasYoutubeUrl: !!formData.youtubeUrl,
-        additionalImagesCount: validAdditionalImages.length
+      console.log('POST Data Field Mappings:', {
+        'Headline → title': formData.title,
+        'Category → category': formData.category,
+        'State → state': formData.state,
+        'District → district': formData.district,
+        'Content → content': `${formData.content?.length || 0} characters`,
+        'YouTube Link → youtubeUrl': formData.youtubeUrl || 'Not provided',
+        'Additional Images → image1, image2, etc.': `${validAdditionalImages.length} images (TEMPORARILY DISABLED)`,
+        'contentType': 'video'
       });
       
       if (validAdditionalImages.length > 0) {
@@ -481,6 +493,20 @@ const VideoPost = () => {
           size: `${(img.size / 1024 / 1024).toFixed(2)} MB`,
           type: img.type
         })));
+      }
+
+      // Log final FormData contents
+      console.log('Final FormData being sent to API:');
+      for (let [key, value] of formDataToSend.entries()) {
+        if (value instanceof File) {
+          console.log(`${key}:`, {
+            name: value.name,
+            size: `${(value.size / 1024 / 1024).toFixed(2)} MB`,
+            type: value.type
+          });
+        } else {
+          console.log(`${key}:`, value);
+        }
       }
 
       const response = await axios({
@@ -510,7 +536,7 @@ const VideoPost = () => {
           district: '',
           youtubeUrl: '',
           content: '',
-          additionalImages: [null, null, null, null, null], // Reset additional images
+          additionalImages: [null, null, null, null], // Reset additional images
         });
         setVideoFile(null);
         setPreviewUrl('');
@@ -530,9 +556,21 @@ const VideoPost = () => {
         setError(response.data.message || 'Failed to create post. Please check all fields and try again.');
       }
     } catch (err) {
-      console.error('Error creating post:', err);
+      console.error('Error creating video post:', {
+        message: err.message,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        responseData: err.response?.data,
+        url: err.config?.url,
+        method: err.config?.method
+      });
       
-      if (err.response) {
+      if (err.response?.status === 400) {
+        // Handle Bad Request error
+        const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Invalid request format';
+        console.error('Bad Request Error:', errorMessage);
+        setError(`Bad Request: ${errorMessage}`);
+      } else if (err.response) {
         console.log('Error response:', err.response.data);
         setError(err.response.data.message || `Error: ${err.response.status}`);
       } else if (err.message) {
@@ -845,7 +883,7 @@ const VideoPost = () => {
                 fontWeight: 500,
               }}
             >
-              Additional Images (Optional - Max 5)
+              Additional Images (Optional - Max 4)
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
               {formData.additionalImages.map((image, index) => (

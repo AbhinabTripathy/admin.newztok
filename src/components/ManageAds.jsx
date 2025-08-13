@@ -104,20 +104,6 @@ const ImageUploadSection = ({ title, dimensions, image, onImageChange, onImageDe
                 objectFit: 'contain',
               }}
             />
-            <IconButton
-              onClick={handleDeleteClick}
-              sx={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <DeleteIcon />
-            </IconButton>
           </Box>
         ) : (
           <Box
@@ -827,7 +813,7 @@ const ManageAds = () => {
 
         <Button
           variant="contained"
-          disabled={(!mobileAds.cardAd || !mobileAds.popoverAd) || loading.mobile}
+          disabled={(!mobileAds.cardAd && !mobileAds.popoverAd) || loading.mobile}
           onClick={handlePostMobileAds}
           sx={{
             mt: 2,
@@ -913,7 +899,7 @@ const ManageAds = () => {
 
         <Button
           variant="contained"
-          disabled={(!webAds.bannerAd || !webAds.sideAd) || loading.web}
+          disabled={(!webAds.bannerAd && !webAds.sideAd) || loading.web}
           onClick={handlePostWebAds}
           sx={{
             mt: 2,
